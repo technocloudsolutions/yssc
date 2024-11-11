@@ -1,0 +1,24 @@
+{
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "rules": {
+    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "react-hooks/exhaustive-deps": "off",
+    "@next/next/no-img-element": "off",
+    "react/no-unescaped-entities": "off",
+    "@typescript-eslint/no-empty-interface": "off",
+    "@typescript-eslint/no-empty-object-type": "off"
+  },
+  "ignorePatterns": ["**/*"],
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
+  "typescript": {
+    "ignoreBuildErrors": true
+  },
+  "compilerOptions": {
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "moduleResolution": "node"
+  }
+}
