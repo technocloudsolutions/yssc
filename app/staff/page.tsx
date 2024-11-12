@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { db, storage } from '@/lib/firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Loader2, Users } from 'lucide-react';
+import { Loader2, Users, UserCircle, Briefcase, FileText } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface StaffMember {
   id: string;
@@ -64,6 +65,27 @@ const columns = [
   { key: 'status', label: 'Status', sortable: true },
 ];
 
+// Add this validation function before the StaffPage component
+const validateFormData = (data: Omit<StaffMember, 'id'>) => {
+  // Personal Information validation
+  if (!data.name || !data.email || !data.phone || 
+      !data.address || !data.city || !data.state || !data.postalCode) {
+    return { isValid: false, tab: 'personal', message: 'Please fill all personal information fields' };
+  }
+
+  // Professional Information validation
+  if (!data.position || !data.department || !data.joinDate || !data.status) {
+    return { isValid: false, tab: 'professional', message: 'Please fill all professional information fields' };
+  }
+
+  // Additional Information validation
+  if (!data.nicNumber) {
+    return { isValid: false, tab: 'additional', message: 'Please fill all additional information fields' };
+  }
+
+  return { isValid: true, tab: null, message: '' };
+};
+
 export default function StaffPage() {
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -86,6 +108,9 @@ export default function StaffPage() {
     status: 'Active',
     profilePicture: ''
   });
+
+  const [activeTab, setActiveTab] = useState('personal');
+  const [formError, setFormError] = useState('');
 
   useEffect(() => {
     fetchStaff();
@@ -118,16 +143,23 @@ export default function StaffPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
+
+    const validation = validateFormData(formData);
+    if (!validation.isValid) {
+      setFormError(validation.message);
+      setActiveTab(validation.tab);
+      return;
+    }
+
     try {
       if (editingStaff) {
-        // Update existing staff member
         const staffRef = doc(db, 'staff', editingStaff.id);
         await updateDoc(staffRef, {
           ...formData,
           updatedAt: new Date().toISOString()
         });
       } else {
-        // Add new staff member
         await addDoc(collection(db, 'staff'), {
           ...formData,
           createdAt: new Date().toISOString()
@@ -140,6 +172,7 @@ export default function StaffPage() {
       fetchStaff();
     } catch (error) {
       console.error('Error saving staff:', error);
+      setFormError('Failed to save staff data. Please try again.');
     }
   };
 
@@ -239,203 +272,242 @@ export default function StaffPage() {
         }}
         title={editingStaff ? 'Edit Staff Member' : 'Add Staff Member'}
       >
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Profile Picture Section */}
-          <div className="border-b pb-6">
-            <h3 className="text-lg font-semibold mb-4">Profile Picture</h3>
-            <div className="text-center mb-4">
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                  {formData.profilePicture ? (
-                    <img 
-                      src={formData.profilePicture} 
-                      alt="Profile" 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-gray-400">No Image</span>
-                  )}
-                </div>
-                <div className="relative">
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    id="profilePicture"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => document.getElementById('profilePicture')?.click()}
-                    disabled={uploading}
-                  >
-                    {uploading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Uploading...
-                      </>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {formError && (
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-md text-sm mb-4">
+              {formError}
+            </div>
+          )}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="personal" className="flex items-center gap-2">
+                <UserCircle className="h-4 w-4" />
+                Personal
+              </TabsTrigger>
+              <TabsTrigger value="professional" className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                Professional
+              </TabsTrigger>
+              <TabsTrigger value="additional" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Additional
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Personal Information Tab */}
+            <TabsContent value="personal" className="space-y-4 mt-4">
+              {/* Profile Picture */}
+              <div className="flex justify-center mb-6">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-32 h-32 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden hover:border-primary transition-colors">
+                    {formData.profilePicture ? (
+                      <img 
+                        src={formData.profilePicture} 
+                        alt="Profile" 
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
-                      'Choose Photo'
+                      <Users className="h-12 w-12 text-gray-400" />
                     )}
-                  </Button>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="profilePicture"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('profilePicture')?.click()}
+                      disabled={uploading}
+                      className="w-[120px]"
+                    >
+                      {uploading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        'Choose Photo'
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Personal Information Section */}
-          <div className="border-b pb-6">
-            <h3 className="text-lg font-semibold mb-4">Personal Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm mb-2">Full Name</label>
+              {/* Personal Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Full Name</label>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Enter full name"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Email</label>
+                  <Input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="Enter email address"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Phone</label>
                 <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="Enter phone number"
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm mb-2">Email</label>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Address</label>
                 <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Enter street address"
                   required
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm mb-2">Phone</label>
-              <Input
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                required
-              />
-            </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">City</label>
+                  <Input
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    placeholder="City"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">State/Region</label>
+                  <Input
+                    value={formData.state}
+                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                    placeholder="State"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Postal Code</label>
+                  <Input
+                    value={formData.postalCode}
+                    onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                    placeholder="Postal code"
+                    required
+                  />
+                </div>
+              </div>
+            </TabsContent>
 
-            <div>
-              <label className="block text-sm mb-2">Address</label>
-              <Input
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                required
-              />
-            </div>
+            {/* Professional Information Tab */}
+            <TabsContent value="professional" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Position</label>
+                  <Input
+                    value={formData.position}
+                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                    placeholder="Enter position"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Department</label>
+                  <select
+                    className="w-full p-2 border rounded-md bg-background"
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    required
+                  >
+                    <option value="">Select Department</option>
+                    {departments.map((dept) => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm mb-2">City</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Join Date</label>
+                  <Input
+                    type="date"
+                    value={formData.joinDate}
+                    onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Status</label>
+                  <select
+                    className="w-full p-2 border rounded-md bg-background"
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as StaffMember['status'] })}
+                    required
+                  >
+                    {STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Additional Information Tab */}
+            <TabsContent value="additional" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">NIC Number</label>
                 <Input
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  value={formData.nicNumber}
+                  onChange={(e) => setFormData({ ...formData, nicNumber: e.target.value })}
+                  placeholder="Enter NIC number"
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm mb-2">State/Region</label>
-                <Input
-                  value={formData.state}
-                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm mb-2">ZIP/Postal Code</label>
-                <Input
-                  value={formData.postalCode}
-                  onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-          </div>
+            </TabsContent>
+          </Tabs>
 
-          {/* Professional Information Section */}
-          <div className="border-b pb-6">
-            <h3 className="text-lg font-semibold mb-4">Professional Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm mb-2">Position</label>
-                <Input
-                  value={formData.position}
-                  onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm mb-2">Department</label>
-                <select
-                  className="w-full p-2 border rounded-md"
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  required
-                >
-                  <option value="">Select Department</option>
-                  {departments.map((dept) => (
-                    <option key={dept} value={dept}>{dept}</option>
-                  ))}
-                </select>
-              </div>
+          <div className="flex justify-between gap-3 pt-4">
+            <div className="text-sm text-muted-foreground">
+              {activeTab === 'personal' ? (
+                'Fill personal details, then proceed to Professional tab'
+              ) : activeTab === 'professional' ? (
+                'Fill professional details, then proceed to Additional tab'
+              ) : (
+                'Fill additional details to complete the form'
+              )}
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm mb-2">Join Date</label>
-                <Input
-                  type="date"
-                  value={formData.joinDate}
-                  onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm mb-2">Status</label>
-                <select
-                  className="w-full p-2 border rounded-md"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as StaffMember['status'] })}
-                  required
-                >
-                  {STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setEditingStaff(null);
+                  resetForm();
+                  setFormError('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingStaff ? 'Update' : 'Add'} Staff Member
+              </Button>
             </div>
-          </div>
-
-          {/* Additional Information Section */}
-          <div className="border-b pb-6">
-            <h3 className="text-lg font-semibold mb-4">Additional Information</h3>
-            <div>
-              <label className="block text-sm mb-2">NIC Number</label>
-              <Input
-                value={formData.nicNumber}
-                onChange={(e) => setFormData({ ...formData, nicNumber: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex justify-end gap-2">
-            <Button type="submit">
-              {editingStaff ? 'Update' : 'Add'} Staff Member
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setIsModalOpen(false);
-                setEditingStaff(null);
-                resetForm();
-              }}
-            >
-              Cancel
-            </Button>
           </div>
         </form>
       </Modal>

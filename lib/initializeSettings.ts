@@ -122,14 +122,14 @@ const defaultReports = [
       },
       details: {
         incomeBreakdown: {
-          "Match Revenue": 150000,
-          "Sponsorship": 60000,
-          "Merchandise": 40000
+          "Match Revenue": "LKR 150000",
+          "Sponsorship": "LKR 60000",
+          "Merchandise": "LKR 40000"
         },
         expenseBreakdown: {
-          "Player Salaries": 100000,
-          "Equipment": 30000,
-          "Facility Maintenance": 50000
+          "Player Salaries": "LKR 100000",
+          "Equipment": "LKR 30000",
+          "Facility Maintenance": "LKR 50000"
         },
         topIncomeCategories: [
           { category: "Match Revenue", amount: 150000 },

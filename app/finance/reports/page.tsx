@@ -30,7 +30,7 @@ ChartJS.register(
   ArcElement
 );
 export default function FinanceReportsPage() {
-  const { items: transactions } = useDataOperations('transactions' as Collection);
+  const { items: transactions, formatAmount } = useDataOperations('transactions' as Collection);
   const { items: accountTypes } = useDataOperations('accountTypes' as Collection);
   const { items: categories } = useDataOperations('categories' as Collection);
   const [filteredTransactions, setFilteredTransactions] = useState(transactions);
@@ -225,15 +225,15 @@ export default function FinanceReportsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4">
           <h3 className="text-lg font-semibold text-green-600">Total Income</h3>
-          <p className="text-2xl font-bold">${totalIncome.toLocaleString()}</p>
+          <p className="text-2xl font-bold">{formatAmount(totalIncome)}</p>
         </Card>
         <Card className="p-4">
           <h3 className="text-lg font-semibold text-red-600">Total Expense</h3>
-          <p className="text-2xl font-bold">${totalExpense.toLocaleString()}</p>
+          <p className="text-2xl font-bold">{formatAmount(totalExpense)}</p>
         </Card>
         <Card className="p-4">
           <h3 className="text-lg font-semibold text-blue-600">Net Income</h3>
-          <p className="text-2xl font-bold">${netIncome.toLocaleString()}</p>
+          <p className="text-2xl font-bold">{formatAmount(netIncome)}</p>
         </Card>
       </div>
 
@@ -368,7 +368,7 @@ export default function FinanceReportsPage() {
                       </td>
                       <td className="p-2">{transaction.accountType}</td>
                       <td className="p-2 text-right font-semibold">
-                        ${Number(transaction.amount).toLocaleString()}
+                        {formatAmount(Number(transaction.amount))}
                       </td>
                       <td className="p-2">{transaction.paymentMethod}</td>
                       <td className="p-2">

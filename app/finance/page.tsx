@@ -8,11 +8,13 @@ import { Input } from '@/components/ui/input';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { Card } from '@/components/ui/card';
-import { DollarSign, TrendingUp, TrendingDown, PiggyBank, FileText, Image as ImageIcon, File, X } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, PiggyBank, FileText, Image as ImageIcon, File, X, Info, ClipboardList, User, Paperclip, Upload, FileType, Link2, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useDataOperations, Collection } from '@/hooks/useDataOperations';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Transaction {
   id: string;
@@ -82,58 +84,7 @@ const INCOME_PAYMENT_METHODS = [
   'Mobile Payment'
 ] as const;
 
-const columns = [
-  { key: 'date', label: 'Date', sortable: true },
-  { key: 'accountType', label: 'Account Type', sortable: true },
-  { key: 'category', label: 'Category', sortable: true },
-  { key: 'type', label: 'Type', sortable: true },
-  { 
-    key: 'amount', 
-    label: 'Amount', 
-    sortable: true,
-    render: (transaction: Transaction) => (
-      <span className={transaction.type === 'Income' ? 'text-green-600' : 'text-red-600'}>
-        ${transaction.amount.toLocaleString()}
-      </span>
-    )
-  },
-  { key: 'description', label: 'Description', sortable: true },
-  { key: 'status', label: 'Status', sortable: true },
-  {
-    key: 'attachments',
-    label: 'Attachments',
-    sortable: false,
-    render: (transaction: Transaction) => {
-      if (!transaction.attachments?.length) {
-        return <span className="text-muted-foreground">No attachments</span>;
-      }
-      
-      return (
-        <div className="flex gap-2">
-          {transaction.attachments.map((url, index) => (
-            <a
-              key={index}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              download
-            >
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <FileText className="h-4 w-4" />
-                Download {index + 1}
-              </Button>
-            </a>
-          ))}
-        </div>
-      );
-    }
-  }
-];
-
+// Add this interface for form data type
 interface TransactionFormData {
   date: string;
   transactionType: 'Income' | 'Expense';
@@ -141,26 +92,56 @@ interface TransactionFormData {
   paymentMethod: string;
   amount: number;
   description: string;
-  status: typeof STATUS_OPTIONS[number];
+  status: 'Pending' | 'Completed' | 'Cancelled';
   category: string;
   payee: string;
   payeeType: string;
   attachments: string[];
 }
 
-// Add this helper function at the top level
-const getFileIcon = (url: string) => {
-  if (url.match(/\.(jpg|jpeg|png|gif)$/i)) {
-    return <ImageIcon className="h-5 w-5" />;
+// Add this helper function for file icons
+const getFileIcon = (fileName: string) => {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  switch (extension) {
+    case 'pdf':
+      return <FileText className="h-4 w-4 text-red-500" />;
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+      return <ImageIcon className="h-4 w-4 text-blue-500" />;
+    default:
+      return <File className="h-4 w-4 text-gray-500" />;
   }
-  if (url.match(/\.(pdf)$/i)) {
-    return <FileText className="h-5 w-5" />;
+};
+
+// Add this validation function near the top of the component
+const validateForm = (data: TransactionFormData): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+
+  if (!data.date) errors.push("Date is required");
+  if (!data.transactionType) errors.push("Transaction type is required");
+  if (!data.accountType) errors.push("Account type is required");
+  if (!data.paymentMethod) errors.push("Payment method is required");
+  if (!data.amount || data.amount <= 0) errors.push("Valid amount is required");
+  if (!data.description.trim()) errors.push("Description is required");
+  if (!data.status) errors.push("Status is required");
+  if (!data.category) errors.push("Category is required");
+  
+  // Validate payee information for expenses
+  if (data.transactionType === 'Expense') {
+    if (!data.payeeType) errors.push("Payee type is required");
+    if (!data.payee.trim()) errors.push("Payee name is required");
   }
-  return <File className="h-5 w-5" />;
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
 };
 
 export default function FinancePage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { items: transactionItems, formatAmount } = useDataOperations('transactions' as Collection);
   const [accountTypes, setAccountTypes] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -272,9 +253,35 @@ export default function FinancePage() {
     }
   };
 
+  // Update the handleSubmit function
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form
+    const { isValid, errors } = validateForm(formData);
+    
+    if (!isValid) {
+      // Show error toast with all validation errors
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: (
+          <div className="space-y-2">
+            <p>Please fix the following errors:</p>
+            <ul className="list-disc pl-4">
+              {errors.map((error, index) => (
+                <li key={index}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        )
+      });
+      return;
+    }
+
     try {
+      setUploading(true); // Show loading state
+      
       const transactionData = {
         ...formData,
         type: formData.transactionType,
@@ -311,6 +318,8 @@ export default function FinancePage() {
         title: "Error",
         description: "Failed to save transaction. Please try again."
       });
+    } finally {
+      setUploading(false); // Hide loading state
     }
   };
 
@@ -415,6 +424,59 @@ export default function FinancePage() {
     }));
   };
 
+  // Move columns definition here, inside the component
+  const columns = [
+    { key: 'date', label: 'Date', sortable: true },
+    { key: 'accountType', label: 'Account Type', sortable: true },
+    { key: 'category', label: 'Category', sortable: true },
+    { key: 'type', label: 'Type', sortable: true },
+    { 
+      key: 'amount', 
+      label: 'Amount', 
+      sortable: true,
+      render: (transaction: Transaction) => (
+        <span className={transaction.type === 'Income' ? 'text-green-600' : 'text-red-600'}>
+          {formatAmount(transaction.amount)}
+        </span>
+      )
+    },
+    { key: 'description', label: 'Description', sortable: true },
+    { key: 'status', label: 'Status', sortable: true },
+    {
+      key: 'attachments',
+      label: 'Attachments',
+      sortable: false,
+      render: (transaction: Transaction) => {
+        if (!transaction.attachments?.length) {
+          return <span className="text-muted-foreground">No attachments</span>;
+        }
+        
+        return (
+          <div className="flex gap-2">
+            {transaction.attachments.map((url, index) => (
+              <a
+                key={index}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+              >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Download {index + 1}
+                </Button>
+              </a>
+            ))}
+          </div>
+        );
+      }
+    }
+  ];
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Financial Management</h1>
@@ -427,7 +489,9 @@ export default function FinancePage() {
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Income</p>
-              <h3 className="text-2xl font-bold text-green-600">${stats.totalIncome.toLocaleString()}</h3>
+              <h3 className="text-2xl font-bold text-green-600">
+                {formatAmount(stats.totalIncome)}
+              </h3>
             </div>
           </div>
         </Card>
@@ -439,7 +503,9 @@ export default function FinancePage() {
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Expenses</p>
-              <h3 className="text-2xl font-bold text-red-600">${stats.totalExpenses.toLocaleString()}</h3>
+              <h3 className="text-2xl font-bold text-red-600">
+                {formatAmount(stats.totalExpenses)}
+              </h3>
             </div>
           </div>
         </Card>
@@ -451,7 +517,9 @@ export default function FinancePage() {
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Balance</p>
-              <h3 className="text-2xl font-bold text-blue-600">${stats.balance.toLocaleString()}</h3>
+              <h3 className="text-2xl font-bold text-blue-600">
+                {formatAmount(stats.balance)}
+              </h3>
             </div>
           </div>
         </Card>
@@ -497,331 +565,321 @@ export default function FinancePage() {
         }}
         title={editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm mb-2">Transaction Type</label>
-            <select
-              className="w-full p-2 border rounded-md bg-background"
-              value={formData.transactionType}
-              onChange={(e) => setFormData({ 
-                ...formData, 
-                transactionType: e.target.value as 'Income' | 'Expense'
-              })}
-              required
-            >
-              {TYPE_OPTIONS.map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <Tabs defaultValue="basic" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="basic" className="flex items-center gap-2">
+                <Info className="h-4 w-4" />
+                <span>Basic Info</span>
+              </TabsTrigger>
+              <TabsTrigger value="details" className="flex items-center gap-2">
+                <ClipboardList className="h-4 w-4" />
+                <span>Details</span>
+              </TabsTrigger>
+              {formData.transactionType === 'Expense' && (
+                <TabsTrigger value="payee" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  <span>Payee</span>
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="attachments" className="flex items-center gap-2">
+                <Paperclip className="h-4 w-4" />
+                <span>Attachments</span>
+              </TabsTrigger>
+            </TabsList>
 
-          {formData.transactionType === 'Expense' && (
-            <>
-              <div>
-                <label className="block text-sm mb-2">Account Type</label>
-                <select
-                  className="w-full p-2 border rounded-md bg-background"
-                  value={formData.accountType}
-                  onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
-                  required
-                >
-                  <option value="">Select Account Type</option>
-                  {EXPENSE_ACCOUNT_TYPES.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
+            {/* Basic Info Tab */}
+            <TabsContent value="basic" className="space-y-4 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-2">Transaction Type</label>
+                  <select
+                    className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
+                    value={formData.transactionType}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      transactionType: e.target.value as 'Income' | 'Expense'
+                    })}
+                    required
+                  >
+                    {TYPE_OPTIONS.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm mb-2">Payment Method</label>
-                <select
-                  className="w-full p-2 border rounded-md bg-background"
-                  value={formData.paymentMethod}
-                  onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
-                  required
-                >
-                  <option value="">Select Payment Method</option>
-                  {EXPENSE_PAYMENT_METHODS.map((method) => (
-                    <option key={method} value={method}>{method}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Amount</label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Enter amount"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Date</label>
-                <Input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Description</label>
-                <textarea
-                  className="w-full p-2 border rounded-md bg-background min-h-[100px]"
-                  placeholder="Enter transaction description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Status</label>
-                <select
-                  className="w-full p-2 border rounded-md bg-background"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    status: e.target.value as typeof STATUS_OPTIONS[number]
-                  })}
-                  required
-                >
-                  {STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Category</label>
-                <select
-                  className="w-full p-2 border rounded-md bg-background"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  required
-                >
-                  <option value="">Select Category</option>
-                  {EXPENSE_CATEGORIES.map((category) => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Payee Type</label>
-                <select
-                  className="w-full p-2 border rounded-md bg-background"
-                  value={formData.payeeType}
-                  onChange={(e) => {
-                    setFormData({ ...formData, payeeType: e.target.value });
-                    fetchPayeeSuggestions(e.target.value);
-                  }}
-                  required
-                >
-                  <option value="">Select Payee Type</option>
-                  {PAYEE_TYPES.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="relative">
-                <label className="block text-sm mb-2">Payee</label>
-                <Input
-                  placeholder="Enter payee name"
-                  value={formData.payee}
-                  onChange={(e) => {
-                    setFormData({ ...formData, payee: e.target.value });
-                    setShowSuggestions(true);
-                  }}
-                  onFocus={() => setShowSuggestions(true)}
-                  required
-                />
-                {showSuggestions && payeeSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full bg-background border rounded-md mt-1 max-h-40 overflow-y-auto">
-                    {payeeSuggestions
-                      .filter(name => 
-                        name.toLowerCase().includes(formData.payee.toLowerCase())
-                      )
-                      .map((name, index) => (
-                        <div
-                          key={index}
-                          className="p-2 hover:bg-muted cursor-pointer"
-                          onClick={() => {
-                            setFormData({ ...formData, payee: name });
-                            setShowSuggestions(false);
-                          }}
-                        >
-                          {name}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {formData.transactionType === 'Income' && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm mb-2">Account Type</label>
-                <select
-                  className="w-full p-2 border rounded-md bg-background"
-                  value={formData.accountType}
-                  onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
-                  required
-                >
-                  <option value="">Select Account Type</option>
-                  {accountTypes.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Payment Method</label>
-                <select
-                  className="w-full p-2 border rounded-md bg-background"
-                  value={formData.paymentMethod}
-                  onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
-                  required
-                >
-                  <option value="">Select Payment Method</option>
-                  {INCOME_PAYMENT_METHODS.map((method) => (
-                    <option key={method} value={method}>{method}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Amount</label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Enter amount"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Date</label>
-                <Input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Description</label>
-                <textarea
-                  className="w-full p-2 border rounded-md bg-background min-h-[100px]"
-                  placeholder="Enter transaction description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Status</label>
-                <select
-                  className="w-full p-2 border rounded-md bg-background"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    status: e.target.value as typeof STATUS_OPTIONS[number]
-                  })}
-                  required
-                >
-                  {STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Category</label>
-                <select
-                  className="w-full p-2 border rounded-md bg-background"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  required
-                >
-                  <option value="">Select Category</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Attachments</label>
-                <div className="space-y-2">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Date</label>
                   <Input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                    onChange={handleFileUpload}
-                    className="bg-background"
-                    multiple
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    required
+                    className="focus:ring-2 focus:ring-primary"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Supported files: PDF, DOC, DOCX, PNG, JPG, JPEG
-                  </p>
-                  {formData.attachments.length > 0 && (
-                    <div className="mt-2 space-y-2">
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Amount</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Enter amount"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
+                    required
+                    className="focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Details Tab */}
+            <TabsContent value="details" className="space-y-4 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Account Type</label>
+                  <select
+                    className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
+                    value={formData.accountType}
+                    onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
+                    required
+                  >
+                    <option value="">Select Account Type</option>
+                    {formData.transactionType === 'Expense' 
+                      ? EXPENSE_ACCOUNT_TYPES.map((type) => (
+                          <option key={type} value={type}>{type}</option>
+                        ))
+                      : accountTypes.map((type) => (
+                          <option key={type} value={type}>{type}</option>
+                        ))
+                    }
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Payment Method</label>
+                  <select
+                    className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
+                    value={formData.paymentMethod}
+                    onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                    required
+                  >
+                    <option value="">Select Payment Method</option>
+                    {(formData.transactionType === 'Expense' ? EXPENSE_PAYMENT_METHODS : INCOME_PAYMENT_METHODS)
+                      .map((method) => (
+                        <option key={method} value={method}>{method}</option>
+                      ))
+                    }
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Category</label>
+                  <select
+                    className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    required
+                  >
+                    <option value="">Select Category</option>
+                    {(formData.transactionType === 'Expense' ? EXPENSE_CATEGORIES : categories)
+                      .map((category) => (
+                        <option key={category} value={category}>{category}</option>
+                      ))
+                    }
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Status</label>
+                  <select
+                    className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
+                    value={formData.status}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      status: e.target.value as typeof STATUS_OPTIONS[number]
+                    })}
+                    required
+                  >
+                    {STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-2">Description</label>
+                  <textarea
+                    className="w-full p-2 border rounded-md bg-background min-h-[100px] focus:ring-2 focus:ring-primary"
+                    placeholder="Enter transaction description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Payee Tab - Only for Expenses */}
+            {formData.transactionType === 'Expense' && (
+              <TabsContent value="payee" className="space-y-4 pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Payee Type</label>
+                    <select
+                      className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
+                      value={formData.payeeType}
+                      onChange={(e) => {
+                        setFormData({ ...formData, payeeType: e.target.value });
+                        fetchPayeeSuggestions(e.target.value);
+                      }}
+                      required
+                    >
+                      <option value="">Select Payee Type</option>
+                      {PAYEE_TYPES.map((type) => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="relative">
+                    <label className="block text-sm font-medium mb-2">Payee Name</label>
+                    <Input
+                      placeholder="Enter payee name"
+                      value={formData.payee}
+                      onChange={(e) => {
+                        setFormData({ ...formData, payee: e.target.value });
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      required
+                      className="focus:ring-2 focus:ring-primary"
+                    />
+                    {showSuggestions && payeeSuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full bg-background border rounded-md mt-1 max-h-40 overflow-y-auto">
+                        {payeeSuggestions
+                          .filter(name => 
+                            name.toLowerCase().includes(formData.payee.toLowerCase())
+                          )
+                          .map((name, index) => (
+                            <div
+                              key={index}
+                              className="p-2 hover:bg-muted cursor-pointer"
+                              onClick={() => {
+                                setFormData({ ...formData, payee: name });
+                                setShowSuggestions(false);
+                              }}
+                            >
+                              {name}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+            )}
+
+            {/* Attachments Tab */}
+            <TabsContent value="attachments" className="space-y-4 pt-4">
+              <div className="space-y-4">
+                <div className="border-2 border-dashed rounded-lg p-6 hover:border-primary transition-colors">
+                  <label className="flex flex-col items-center gap-2 cursor-pointer">
+                    <Upload className="h-8 w-8 text-muted-foreground" />
+                    <Input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      multiple
+                    />
+                    <span className="text-sm font-medium">Click to upload files</span>
+                    <span className="text-xs text-muted-foreground">
+                      Supported files: PDF, DOC, DOCX, PNG, JPG, JPEG
+                    </span>
+                  </label>
+                </div>
+
+                {formData.attachments.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <FileType className="h-4 w-4" />
+                      Attached Files
+                    </h4>
+                    <div className="divide-y divide-border rounded-md border">
                       {formData.attachments.map((file, index) => {
                         const fileName = file.split('/').pop()?.split('-')[0] || `Attachment ${index + 1}`;
                         return (
-                          <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                            <div className="flex items-center gap-2">
+                          <div key={index} className="flex items-center justify-between p-3 hover:bg-muted/50">
+                            <div className="flex items-center gap-3">
                               {getFileIcon(file)}
-                              <span className="text-sm">{fileName}</span>
+                              <span className="text-sm font-medium">{fileName}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <a 
-                                href={file} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-blue-500 hover:underline text-sm"
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                asChild
+                                className="text-blue-500 hover:text-blue-600"
                               >
-                                View
-                              </a>
+                                <a 
+                                  href={file} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1"
+                                >
+                                  <Link2 className="h-4 w-4" />
+                                  <span>View</span>
+                                </a>
+                              </Button>
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleRemoveAttachment(index)}
+                                className="text-red-500 hover:text-red-600"
                               >
-                                <X className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            </TabsContent>
+          </Tabs>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsModalOpen(false);
+                setEditingTransaction(null);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
             <Button 
               type="submit"
-              className="w-full"
+              className="bg-primary"
+              disabled={uploading}
             >
-              {editingTransaction ? 'Update' : 'Add'} Transaction
+              {uploading ? (
+                <div className="flex items-center gap-2">
+                  <span className="animate-spin">⏳</span>
+                  {editingTransaction ? 'Updating...' : 'Adding...'}
+                </div>
+              ) : (
+                editingTransaction ? 'Update' : 'Add'
+              )} Transaction
             </Button>
           </div>
         </form>

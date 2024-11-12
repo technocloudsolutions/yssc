@@ -77,11 +77,16 @@ export function useDataOperations(collectionName: Collection) {
     }
   };
 
+  const formatAmount = (amount: number) => {
+    return `LKR ${amount.toFixed(2)}`;
+  }
+
   return {
     items,
     addItem,
     updateItem,
     deleteItem,
-    refreshItems: fetchItems
+    refreshItems: fetchItems,
+    formatAmount
   };
 } 

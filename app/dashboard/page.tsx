@@ -240,7 +240,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Revenue</p>
               <h3 className="text-2xl font-bold">
-                ${(stats.finances.revenue / 1000000).toFixed(1)}M
+                LKR {(stats.finances.revenue / 1000000).toFixed(1)}M
               </h3>
               <p className="text-sm text-green-500">
                 +{stats.finances.growth.toFixed(1)}% growth
@@ -257,7 +257,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Expenses</p>
               <h3 className="text-2xl font-bold">
-                ${(stats.finances.expenses / 1000).toFixed(0)}K
+                LKR {(stats.finances.expenses / 1000).toFixed(0)}K
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 This month
