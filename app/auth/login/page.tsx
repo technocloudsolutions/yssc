@@ -1,42 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useForm } from 'react-hook-form';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { login, user } = useAuth();
+  const { login } = useAuth();
   
   const { register, handleSubmit, formState: { errors } } = useForm();
 
   const onSubmit = async (data: any) => {
     try {
-      console.log('Starting login submission...');
-      setIsLoading(true);
-      setError(null);
       await login(data.email, data.password);
-      console.log('Login successful, redirecting...');
       router.push('/dashboard');
-    } catch (err: any) {
-      console.error('Detailed login error:', err);
-      setError(err.message || 'Invalid email or password');
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      setError('Invalid email or password');
     }
   };
-
-  useEffect(() => {
-    if (user) {
-      console.log('User already logged in, redirecting...');
-      router.push('/dashboard');
-    }
-  }, [user, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
@@ -69,7 +54,6 @@ export default function LoginPage() {
                 })}
                 className="mt-1"
                 placeholder="Email"
-                disabled={isLoading}
               />
               {errors.email && (
                 <p className="text-red-500 text-sm mt-1">{errors.email.message?.toString()}</p>
@@ -85,7 +69,6 @@ export default function LoginPage() {
                 {...register('password', { required: 'Password is required' })}
                 className="mt-1"
                 placeholder="Password"
-                disabled={isLoading}
               />
               {errors.password && (
                 <p className="text-red-500 text-sm mt-1">{errors.password.message?.toString()}</p>
@@ -93,12 +76,8 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <Button 
-            type="submit" 
-            className="w-full"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Signing in...' : 'Sign in'}
+          <Button type="submit" className="w-full">
+            Sign in
           </Button>
         </form>
       </div>
