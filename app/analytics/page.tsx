@@ -33,6 +33,7 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import { DocumentData } from 'firebase/firestore';
 
 interface Analytics {
   playerStats: {
@@ -65,6 +66,32 @@ interface Analytics {
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+interface PerformanceTrend {
+  date: string;
+  rating: number;
+  goals: number;
+}
+
+interface FinancialTrend {
+  date: string;
+  income: number;
+  expenses: number;
+}
+
+interface FirestorePerformance {
+  date: string;
+  rating: number;
+  goals: number;
+  type?: string;
+  amount?: number;
+}
+
+interface FirestoreTransaction {
+  date: string;
+  type: 'Income' | 'Expense';
+  amount: number;
+}
 
 export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<Analytics>({
@@ -102,8 +129,8 @@ export default function AnalyticsPage() {
     end: new Date().toISOString().split('T')[0]
   });
 
-  const [performanceTrends, setPerformanceTrends] = useState<any[]>([]);
-  const [financialTrends, setFinancialTrends] = useState<any[]>([]);
+  const [performanceTrends, setPerformanceTrends] = useState<PerformanceTrend[]>([]);
+  const [financialTrends, setFinancialTrends] = useState<FinancialTrend[]>([]);
 
   useEffect(() => {
     fetchAnalytics();
@@ -154,7 +181,7 @@ export default function AnalyticsPage() {
     }
   };
 
-  const fetchPerformanceTrends = async () => {
+  const fetchPerformanceTrends = async (): Promise<PerformanceTrend[]> => {
     const performancesRef = collection(db, 'performances');
     const q = query(
       performancesRef,
@@ -162,10 +189,10 @@ export default function AnalyticsPage() {
       where('date', '<=', dateRange.end)
     );
     const snapshot = await getDocs(q);
-    const performances = snapshot.docs.map(doc => doc.data());
+    const performances = snapshot.docs.map(doc => doc.data() as FirestorePerformance);
 
     // Process data for trends
-    return performances.reduce((acc: any[], perf) => {
+    return performances.reduce((acc: PerformanceTrend[], perf: FirestorePerformance) => {
       const date = new Date(perf.date).toLocaleDateString();
       const existing = acc.find(p => p.date === date);
       if (existing) {
@@ -174,15 +201,15 @@ export default function AnalyticsPage() {
       } else {
         acc.push({
           date,
-          rating: perf.rating,
+          rating: perf.rating || 0,
           goals: perf.goals || 0
         });
       }
       return acc;
-    }, []);
+    }, [] as PerformanceTrend[]);
   };
 
-  const fetchFinancialTrends = async () => {
+  const fetchFinancialTrends = async (): Promise<FinancialTrend[]> => {
     const transactionsRef = collection(db, 'transactions');
     const q = query(
       transactionsRef,
@@ -190,27 +217,27 @@ export default function AnalyticsPage() {
       where('date', '<=', dateRange.end)
     );
     const snapshot = await getDocs(q);
-    const transactions = snapshot.docs.map(doc => doc.data());
+    const transactions = snapshot.docs.map(doc => doc.data() as FirestoreTransaction);
 
     // Process data for trends
-    return transactions.reduce((acc: any[], trans) => {
+    return transactions.reduce((acc: FinancialTrend[], trans: FirestoreTransaction) => {
       const date = new Date(trans.date).toLocaleDateString();
       const existing = acc.find(t => t.date === date);
       if (existing) {
         if (trans.type === 'Income') {
-          existing.income += trans.amount;
+          existing.income += trans.amount || 0;
         } else {
-          existing.expenses += trans.amount;
+          existing.expenses += trans.amount || 0;
         }
       } else {
         acc.push({
           date,
-          income: trans.type === 'Income' ? trans.amount : 0,
-          expenses: trans.type === 'Expense' ? trans.amount : 0
+          income: trans.type === 'Income' ? trans.amount || 0 : 0,
+          expenses: trans.type === 'Expense' ? trans.amount || 0 : 0
         });
       }
       return acc;
-    }, []);
+    }, [] as FinancialTrend[]);
   };
 
   const handleExport = () => {

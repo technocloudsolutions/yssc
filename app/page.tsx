@@ -1,32 +1,22 @@
-'use client';
-
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "./api/auth/[...nextauth]/route";
-import { redirect } from "next/navigation";
+import { getServerSession } from 'next-auth'
+import type { Session } from 'next-auth'
+import { authOptions } from './api/auth/[...nextauth]/auth'
 
 export default async function Home() {
-  // Get the server session
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions) as Session | null
 
-  // If no session exists, redirect to login
-  if (!session) {
-    redirect("/auth/signin");
-    return null;
-  }
-
-  // If session exists but no user or role, handle the error
-  if (!session.user || !session.user.role) {
-    console.error("Invalid session structure:", session);
-    redirect("/auth/signin");
-    return null;
-  }
-
-  // Redirect based on user role
-  if (session.user.role === "admin") {
-    redirect("/dashboard");
-  } else if (session.user.role === "user") {
-    redirect("/user-dashboard");
-  }
-
-  return null;
-}
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      <div>
+        {session ? (
+          <>
+            <p>Signed in as {session.user?.email}</p>
+            <a href="/api/auth/signout">Sign out</a>
+          </>
+        ) : (
+          <a href="/api/auth/signin">Sign in</a>
+        )}
+      </div>
+    </main>
+  )
+} 
