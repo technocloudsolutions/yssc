@@ -1,22 +1,13 @@
-import { getServerSession } from 'next-auth'
-import type { Session } from 'next-auth'
-import { authOptions } from './api/auth/[...nextauth]/auth'
+import { AuthWrapper } from '@/components/providers/AuthWrapper';
 
-export default async function Home() {
-  const session = await getServerSession(authOptions) as Session | null
-
+export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div>
-        {session ? (
-          <>
-            <p>Signed in as {session.user?.email}</p>
-            <a href="/api/auth/signout">Sign out</a>
-          </>
-        ) : (
-          <a href="/api/auth/signin">Sign in</a>
-        )}
-      </div>
-    </main>
-  )
+    <AuthWrapper>
+      <main className="flex min-h-screen flex-col items-center justify-between p-24">
+        <div>
+          <h1>Welcome to the Dashboard</h1>
+        </div>
+      </main>
+    </AuthWrapper>
+  );
 } 

@@ -10,7 +10,7 @@ export interface AuthContextType {
   user: CustomUser | null;
   userData: UserData | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<UserData>;
 }
 
 const AuthContext = createContext<AuthContextType>({ 
@@ -25,8 +25,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+  const login = async (email: string, password: string): Promise<UserData> => {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where("email", "==", email));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        const userData = {
+          id: userDoc.id,
+          ...userDoc.data()
+        } as UserData;
+        
+        document.cookie = `user=${JSON.stringify({
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          role: userData.role
+        })}; path=/`;
+        
+        return userData;
+      }
+      throw new Error('User data not found');
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   };
 
   useEffect(() => {
@@ -39,14 +65,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           if (!querySnapshot.empty) {
             const userDoc = querySnapshot.docs[0];
-            const userData = { id: userDoc.id, ...userDoc.data() } as UserData;
-            setUserData(userData);
+            const userData = {
+              id: userDoc.id,
+              ...userDoc.data()
+            } as UserData;
             
-            const customUser = {
+            setUserData(userData);
+            setUser({
               ...firebaseUser,
               role: userData.role
-            } as CustomUser;
-            setUser(customUser);
+            } as CustomUser);
           }
         } catch (error) {
           console.error("Error fetching user data:", error);

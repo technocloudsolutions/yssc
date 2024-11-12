@@ -5,20 +5,31 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useForm } from 'react-hook-form';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface LoginFormData {
+  email: string;
+  password: string;
+}
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { login } = useAuth();
   
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: LoginFormData) => {
     try {
-      await login(data.email, data.password);
-      router.push('/dashboard');
+      setError(null);
+      const userData = await login(data.email, data.password);
+      if (userData?.role?.toLowerCase() === 'admin') {
+        router.push('/dashboard');
+      } else {
+        router.push('/');
+      }
     } catch (err) {
+      console.error('Login error:', err);
       setError('Invalid email or password');
     }
   };

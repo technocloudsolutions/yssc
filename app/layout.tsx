@@ -3,10 +3,8 @@ import localFont from "next/font/local";
 import "./globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
-import { ThemeProvider } from "next-themes";
-import { AppProvider } from "@/contexts/AppContext";
-import { AuthProvider } from '@/contexts/AuthContext';
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/toaster";
+import { Providers } from "@/components/providers/Providers";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -32,27 +30,18 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <AppProvider>
-            <AuthProvider>
-              <div className="flex h-screen bg-background">
-                <Sidebar />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <Header />
-                  <main className="flex-1 overflow-y-auto p-4">
-                    {children}
-                  </main>
-                </div>
-              </div>
-              <Toaster />
-            </AuthProvider>
-          </AppProvider>
-        </ThemeProvider>
+        <Providers>
+          <div className="flex h-screen bg-background">
+            <Sidebar />
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <Header />
+              <main className="flex-1 overflow-y-auto p-4">
+                {children}
+              </main>
+            </div>
+          </div>
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );

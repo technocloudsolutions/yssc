@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserData } from '@/types/user';
+import { UserData, NewUser } from '@/types/user';
 import {
   Table,
   TableBody,
@@ -21,28 +21,25 @@ import {
 const ROLES = ['admin', 'user', 'staff'] as const;
 
 export default function UsersPage() {
-  const { user, userData } = useAuth();
+  const { userData } = useAuth();
   const [users, setUsers] = useState<UserData[]>([]);
   const [isAddingUser, setIsAddingUser] = useState(false);
-  const [newUser, setNewUser] = useState({
+  const [newUser, setNewUser] = useState<NewUser>({
     name: '',
     email: '',
     password: '',
     role: '',
-    status: 'active' as const,
+    status: 'active'
   });
 
   useEffect(() => {
-    if (userData?.role === 'admin') {
-      fetchUsers();
-    }
-  }, [userData]);
+    fetchUsers();
+  }, []);
 
   const fetchUsers = async () => {
     try {
-      const usersRef = collection(db, 'users');
-      const snapshot = await getDocs(usersRef);
-      const usersData = snapshot.docs.map(doc => ({
+      const querySnapshot = await getDocs(collection(db, 'users'));
+      const usersData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as UserData[];
@@ -55,64 +52,54 @@ export default function UsersPage() {
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Create authentication user
+      // Create auth user
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         newUser.email,
         newUser.password
       );
 
-      // Create user document in Firestore
-      const userData = {
+      // Add user to Firestore
+      await addDoc(collection(db, 'users'), {
+        uid: userCredential.user.uid,
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,
-        status: newUser.status,
-      };
-
-      await addDoc(collection(db, 'users'), {
-        ...userData,
-        uid: userCredential.user.uid,
+        status: 'active'
       });
 
       setIsAddingUser(false);
-      setNewUser({ 
-        name: '', 
-        email: '', 
-        password: '', 
-        role: '', 
-        status: 'active' 
-      });
       fetchUsers();
     } catch (error) {
       console.error('Error adding user:', error);
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (confirm('Are you sure you want to delete this user?')) {
-      try {
-        await deleteDoc(doc(db, 'users', userId));
-        fetchUsers();
-      } catch (error) {
-        console.error('Error deleting user:', error);
-      }
-    }
-  };
-
   const handleToggleStatus = async (user: UserData) => {
     try {
-      const newStatus = user.status === 'active' ? 'inactive' : 'active';
-      await updateDoc(doc(db, 'users', user.id), {
-        status: newStatus
+      const userRef = doc(db, 'users', user.id);
+      await updateDoc(userRef, {
+        status: user.status === 'active' ? 'inactive' : 'active'
       });
       fetchUsers();
     } catch (error) {
-      console.error('Error updating user status:', error);
+      console.error('Error toggling user status:', error);
     }
   };
 
-  if (userData?.role !== 'admin') {
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user?')) return;
+    
+    try {
+      await deleteDoc(doc(db, 'users', userId));
+      fetchUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
+  };
+
+  // Check for admin access
+  if (!userData || userData.role.toLowerCase() !== 'admin') {
     return (
       <div className="p-4">
         <h1 className="text-2xl font-bold">Access Denied</h1>

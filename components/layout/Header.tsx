@@ -18,12 +18,14 @@ export default function Header() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      document.cookie = 'user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      
       toast({
         title: "Logged out successfully",
         description: "Please log in to continue using the system.",
         duration: 3000,
       });
-      router.push('/login');
+      router.push('/auth/login');
     } catch (error) {
       console.error('Error logging out:', error);
       toast({
@@ -32,6 +34,10 @@ export default function Header() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleLogin = () => {
+    router.push('/auth/login');
   };
 
   return (
@@ -69,7 +75,7 @@ export default function Header() {
           <Button 
             variant="ghost" 
             size="sm"
-            onClick={() => router.push('/login')}
+            onClick={handleLogin}
             className="flex items-center gap-2"
           >
             <LogIn className="h-4 w-4" />

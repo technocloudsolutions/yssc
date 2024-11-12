@@ -10,4 +10,12 @@ export interface UserData {
   email: string;
   role: string;
   status: 'active' | 'inactive';
+}
+
+export interface NewUser {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  status: 'active' | 'inactive';
 } 
