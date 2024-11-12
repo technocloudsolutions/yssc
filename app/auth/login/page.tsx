@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '@/hooks/useAuth';
+import { auth } from '@/lib/firebase';
+import { setPersistence, browserLocalPersistence } from 'firebase/auth';
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
@@ -16,6 +18,9 @@ export default function LoginPage() {
 
   const onSubmit = async (data: any) => {
     try {
+      // Set persistence to LOCAL
+      await setPersistence(auth, browserLocalPersistence);
+      // Attempt login
       await login(data.email, data.password);
       router.push('/dashboard');
     } catch (err) {
