@@ -37,12 +37,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      // Set persistence first
+      console.log('Starting login process...');
       await setPersistence(auth, browserLocalPersistence);
-      // Then sign in
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('Persistence set to browserLocalPersistence');
       
-      // Fetch user data immediately after login
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('User signed in:', userCredential.user.email);
+      
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where("email", "==", email));
       const querySnapshot = await getDocs(q);
@@ -50,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const userData = { id: userDoc.id, ...userDoc.data() } as UserData;
+        console.log('User data fetched:', userData);
         setUserData(userData);
         
         const customUser = {
@@ -57,6 +59,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: userData.role
         } as CustomUser;
         setUser(customUser);
+        console.log('Login successful, user set with role:', userData.role);
+      } else {
+        console.error('No user document found in Firestore');
+        throw new Error('User data not found');
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -77,7 +83,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    console.log('AuthProvider useEffect running...');
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('Auth state changed. User:', firebaseUser?.email);
       try {
         if (firebaseUser) {
           const usersRef = collection(db, 'users');
@@ -87,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!querySnapshot.empty) {
             const userDoc = querySnapshot.docs[0];
             const userData = { id: userDoc.id, ...userDoc.data() } as UserData;
+            console.log('User data retrieved:', userData);
             setUserData(userData);
             
             const customUser = {
@@ -94,8 +103,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               role: userData.role
             } as CustomUser;
             setUser(customUser);
+            console.log('User state updated with role:', userData.role);
+          } else {
+            console.error('No user document found for:', firebaseUser.email);
           }
         } else {
+          console.log('No firebase user, clearing state');
           setUser(null);
           setUserData(null);
         }
@@ -108,8 +121,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('Cleaning up auth listener');
+      unsubscribe();
+    };
   }, []);
+
+  useEffect(() => {
+    console.log('Current auth state:', {
+      user: user?.email,
+      userRole: user?.role,
+      userData: userData,
+      loading
+    });
+  }, [user, userData, loading]);
 
   return (
     <AuthContext.Provider value={{ user, userData, loading, login, logout }}>

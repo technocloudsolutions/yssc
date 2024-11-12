@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,23 +11,32 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   
   const { register, handleSubmit, formState: { errors } } = useForm();
 
   const onSubmit = async (data: any) => {
     try {
+      console.log('Starting login submission...');
       setIsLoading(true);
       setError(null);
       await login(data.email, data.password);
+      console.log('Login successful, redirecting...');
       router.push('/dashboard');
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('Invalid email or password');
+    } catch (err: any) {
+      console.error('Detailed login error:', err);
+      setError(err.message || 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user) {
+      console.log('User already logged in, redirecting...');
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
