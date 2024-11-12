@@ -30,6 +30,7 @@ import {
   Cell
 } from 'recharts';
 import { format } from 'date-fns';
+import Image from 'next/image';
 
 interface DashboardStats {
   players: {
@@ -199,6 +200,16 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <div className="flex items-center gap-4 mb-6">
+        <Image 
+          src="/logo.png"
+          alt="YSSC Logo"
+          width={40}
+          height={40}
+        />
+        <h1 className="text-2xl font-semibold">Young Silver Sports Club Dashboard</h1>
+      </div>
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">Welcome, {user.email?.split('@')[0]}</h1>

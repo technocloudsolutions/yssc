@@ -251,6 +251,11 @@ const defaultReports = [
   }
 ];
 
+export const defaultSettings = {
+  organizationName: "Young Silver Sports Club",
+  // ... other settings
+}
+
 export async function initializeSettings() {
   try {
     // Check if data already exists
