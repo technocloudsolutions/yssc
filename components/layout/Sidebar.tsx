@@ -11,6 +11,9 @@ import {
   UserCog,
   TrendingUp,
   UserPlus,
+  LayoutDashboard,
+  ClipboardList,
+  Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
@@ -23,10 +26,11 @@ const Sidebar = () => {
     { title: 'Staff', icon: UserCog, href: '/staff' },
     { title: 'Finance', icon: DollarSign, href: '/finance' },
     { title: 'Reports', icon: FileText, href: '/reports' },
-    { title: 'Analytics', icon: BarChart3, href: '/analytics' },
+    { title: 'Player Expenses', icon: ClipboardList, href: '/reports/player-expenses' },
+    { title: 'Category Expenses', icon: BarChart3, href: '/reports/category-expenses' },
     { title: 'Performance', icon: TrendingUp, href: '/performance' },
     { title: 'Settings', icon: Settings, href: '/settings' },
-    { title: 'User Management', icon: UserPlus, href: '/settings/users' }
+    { title: 'User Management', icon: UserPlus, href: '/settings/users' },
   ]);
 
   // If user is not logged in, don't render the sidebar

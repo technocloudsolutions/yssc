@@ -15,6 +15,7 @@ import { storage } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useDataOperations, Collection } from '@/hooks/useDataOperations';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReceiptForm } from '@/components/forms/receipt-form';
 
 interface Transaction {
   id: string;
@@ -28,6 +29,8 @@ interface Transaction {
   type: 'Income' | 'Expense';
   createdAt: string;
   updatedAt?: string;
+  receiptIssued: boolean;
+  receiptNo: string;
 }
 
 const STATUS_OPTIONS = ['Pending', 'Completed', 'Cancelled'] as const;
@@ -172,6 +175,10 @@ export default function FinancePage() {
   const [showAttachments, setShowAttachments] = useState(false);
 
   const [viewerOpen, setViewerOpen] = useState(false);
+
+  const [showReceiptForm, setShowReceiptForm] = useState(false);
+
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
   useEffect(() => {
     fetchTransactions();
@@ -474,12 +481,82 @@ export default function FinancePage() {
           </div>
         );
       }
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      render: (transaction: Transaction) => (
+        <div className="flex gap-2">
+          {transaction.type === 'Income' && !transaction.receiptIssued && (
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => {
+                setSelectedTransaction(transaction);
+                setShowReceiptForm(true);
+              }}
+            >
+              Issue Receipt
+            </Button>
+          )}
+          {/* ... other action buttons ... */}
+        </div>
+      )
     }
   ];
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Financial Management</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Finance Management</h1>
+      </div>
+
+      <Modal
+        isOpen={showReceiptForm}
+        onClose={() => {
+          setShowReceiptForm(false);
+          setSelectedTransaction(null);
+        }}
+        title="Issue Receipt"
+      >
+        <ReceiptForm 
+          onSubmit={async (data) => {
+            try {
+              // Save receipt to Firestore
+              await addDoc(collection(db, 'receipts'), {
+                ...data,
+                createdAt: new Date().toISOString(),
+                transactionId: selectedTransaction?.id
+              });
+
+              // Update transaction to mark receipt as issued
+              if (selectedTransaction) {
+                await updateDoc(doc(db, 'transactions', selectedTransaction.id), {
+                  receiptIssued: true,
+                  receiptNo: data.receiptNo
+                });
+              }
+
+              toast({
+                title: "Success",
+                description: "Receipt issued successfully",
+              });
+
+              setShowReceiptForm(false);
+              setSelectedTransaction(null);
+            } catch (error) {
+              console.error('Error saving receipt:', error);
+              toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to issue receipt",
+              });
+            }
+          }}
+          transactionData={selectedTransaction}
+        />
+      </Modal>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-6">

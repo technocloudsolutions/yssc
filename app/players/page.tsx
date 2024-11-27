@@ -10,9 +10,8 @@ import { db, storage } from '@/lib/firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Loader2 } from 'lucide-react';
-import { Users } from 'lucide-react';
+import { Users, UserCircle, Briefcase, FileText, Printer } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserCircle, Briefcase, FileText } from "lucide-react";
 
 interface Player {
   id: string;
@@ -32,13 +31,309 @@ interface Player {
   jerseyNumber: number;
   joinDate: string;
   contractUntil: string;
-  marketValue: number;
   status: 'Active' | 'Injured' | 'On Loan' | 'Transfer Listed';
   
   // Additional Information
   nicNumber: string;  // National ID
   ffslNumber: string; // Football Federation Registration Number
   profilePicture?: string;
+}
+
+interface ViewModalProps {
+  player: Player;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+function ViewPlayerModal({ player, isOpen, onClose }: ViewModalProps) {
+  const handlePrint = () => {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    // Generate the print content with styles
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Player Details - ${player.name}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              line-height: 1.4;
+              margin: 15px;
+              font-size: 12px;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 15px;
+              padding-bottom: 10px;
+              border-bottom: 1px solid #ccc;
+            }
+            .header h1 {
+              margin: 5px 0;
+              font-size: 20px;
+            }
+            .header p {
+              margin: 5px 0;
+              color: #666;
+            }
+            .player-image {
+              width: 100px;
+              height: 100px;
+              border-radius: 50%;
+              margin: 0 auto;
+              display: block;
+              object-fit: cover;
+              margin-bottom: 10px;
+            }
+            .section {
+              margin-bottom: 15px;
+            }
+            .section-title {
+              font-size: 14px;
+              font-weight: bold;
+              margin-bottom: 8px;
+              padding-bottom: 3px;
+              border-bottom: 1px solid #eee;
+              color: #333;
+            }
+            .info-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 8px;
+            }
+            .info-item {
+              margin-bottom: 5px;
+            }
+            .info-label {
+              font-weight: bold;
+              color: #666;
+              font-size: 11px;
+              margin-bottom: 2px;
+            }
+            .info-value {
+              color: #333;
+            }
+            @media print {
+              body {
+                margin: 10px;
+                padding: 0;
+              }
+              .section {
+                page-break-inside: avoid;
+              }
+              @page {
+                margin: 0.5cm;
+                size: A4;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <img 
+              src="${player.profilePicture || '/placeholder-avatar.png'}" 
+              alt="${player.name}"
+              class="player-image"
+            />
+            <h1>${player.name}</h1>
+            <p>${player.position} • #${player.jerseyNumber}</p>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Personal Information</h2>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label">Email</div>
+                <div class="info-value">${player.email || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Phone</div>
+                <div class="info-value">${player.phone || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Date of Birth</div>
+                <div class="info-value">${player.dateOfBirth || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Nationality</div>
+                <div class="info-value">${player.nationality || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Address</div>
+                <div class="info-value">${`${player.address || ''} ${player.city || ''} ${player.state || ''} ${player.postalCode || ''}`.trim() || 'N/A'}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Professional Information</h2>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label">Position</div>
+                <div class="info-value">${player.position}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Jersey Number</div>
+                <div class="info-value">#${player.jerseyNumber}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Join Date</div>
+                <div class="info-value">${player.joinDate || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Contract Until</div>
+                <div class="info-value">${player.contractUntil || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Status</div>
+                <div class="info-value">${player.status}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Additional Information</h2>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label">NIC Number</div>
+                <div class="info-value">${player.nicNumber || 'N/A'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">FFSL Number</div>
+                <div class="info-value">${player.ffslNumber || 'N/A'}</div>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Write the content to the new window and print
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    // Wait for images to load before printing
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Player Details">
+      <div className="space-y-6">
+        {/* Header with player image and basic info */}
+        <div className="flex items-center gap-4">
+          <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200">
+            {player.profilePicture ? (
+              <img 
+                src={player.profilePicture} 
+                alt={player.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                <Users className="h-8 w-8" />
+              </div>
+            )}
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold">{player.name}</h2>
+            <p className="text-muted-foreground">
+              {player.position} • #{player.jerseyNumber}
+            </p>
+          </div>
+        </div>
+
+        <Tabs defaultValue="personal" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="personal">Personal</TabsTrigger>
+            <TabsTrigger value="professional">Professional</TabsTrigger>
+            <TabsTrigger value="additional">Additional</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="personal" className="space-y-4">
+            <Card className="p-4">
+              <dl className="grid grid-cols-2 gap-4">
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Email</dt>
+                  <dd>{player.email || 'N/A'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Phone</dt>
+                  <dd>{player.phone || 'N/A'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Date of Birth</dt>
+                  <dd>{player.dateOfBirth || 'N/A'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Nationality</dt>
+                  <dd>{player.nationality || 'N/A'}</dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="text-sm font-medium text-muted-foreground">Address</dt>
+                  <dd>{`${player.address || ''} ${player.city || ''} ${player.state || ''} ${player.postalCode || ''}`.trim() || 'N/A'}</dd>
+                </div>
+              </dl>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="professional" className="space-y-4">
+            <Card className="p-4">
+              <dl className="grid grid-cols-2 gap-4">
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Position</dt>
+                  <dd>{player.position}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Jersey Number</dt>
+                  <dd>#{player.jerseyNumber}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Join Date</dt>
+                  <dd>{player.joinDate || 'N/A'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Contract Until</dt>
+                  <dd>{player.contractUntil || 'N/A'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">Status</dt>
+                  <dd>{player.status}</dd>
+                </div>
+              </dl>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="additional" className="space-y-4">
+            <Card className="p-4">
+              <dl className="grid grid-cols-2 gap-4">
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">NIC Number</dt>
+                  <dd>{player.nicNumber || 'N/A'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-muted-foreground">FFSL Number</dt>
+                  <dd>{player.ffslNumber || 'N/A'}</dd>
+                </div>
+              </dl>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={handlePrint}>
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
+          <Button onClick={onClose}>Close</Button>
+        </div>
+      </div>
+    </Modal>
+  );
 }
 
 const POSITIONS = [
@@ -91,24 +386,10 @@ const columns = [
 
 // Add this new function before the PlayersPage component
 const validateFormData = (data: Omit<Player, 'id'>) => {
-  // Personal Information validation
-  if (!data.name || !data.email || !data.phone || !data.dateOfBirth || 
-      !data.nationality || !data.address || !data.city || !data.state || !data.postalCode) {
-    return { isValid: false, tab: 'personal', message: 'Please fill all personal information fields' };
+  if (!data.name || data.name.trim() === '') {
+    return { isValid: false, message: 'Name is required' };
   }
-
-  // Professional Information validation
-  if (!data.position || !data.jerseyNumber || !data.joinDate || 
-      !data.contractUntil || !data.marketValue || !data.status) {
-    return { isValid: false, tab: 'professional', message: 'Please fill all professional information fields' };
-  }
-
-  // Additional Information validation
-  if (!data.nicNumber || !data.ffslNumber) {
-    return { isValid: false, tab: 'additional', message: 'Please fill all additional information fields' };
-  }
-
-  return { isValid: true, tab: null, message: '' };
+  return { isValid: true, message: '' };
 };
 
 export default function PlayersPage() {
@@ -130,7 +411,6 @@ export default function PlayersPage() {
     jerseyNumber: 1,
     joinDate: '',
     contractUntil: '',
-    marketValue: 0,
     status: 'Active',
     nicNumber: '',
     ffslNumber: '',
@@ -141,6 +421,9 @@ export default function PlayersPage() {
 
   const [activeTab, setActiveTab] = useState('personal');
   const [formError, setFormError] = useState('');
+
+  const [viewingPlayer, setViewingPlayer] = useState<Player | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   useEffect(() => {
     fetchPlayers();
@@ -167,7 +450,6 @@ export default function PlayersPage() {
     const validation = validateFormData(formData);
     if (!validation.isValid) {
       setFormError(validation.message);
-      setActiveTab(validation.tab);
       return;
     }
 
@@ -221,7 +503,6 @@ export default function PlayersPage() {
       jerseyNumber: 1,
       joinDate: '',
       contractUntil: '',
-      marketValue: 0,
       status: 'Active',
       nicNumber: '',
       ffslNumber: '',
@@ -245,7 +526,6 @@ export default function PlayersPage() {
       jerseyNumber: player.jerseyNumber,
       joinDate: player.joinDate,
       contractUntil: player.contractUntil,
-      marketValue: player.marketValue,
       status: player.status,
       nicNumber: player.nicNumber,
       ffslNumber: player.ffslNumber,
@@ -271,6 +551,11 @@ export default function PlayersPage() {
     }
   };
 
+  const handleView = (player: Player) => {
+    setViewingPlayer(player);
+    setIsViewModalOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -284,6 +569,7 @@ export default function PlayersPage() {
         data={players}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onView={handleView}
         renderCustomCell={(column, item) => {
           if (column.key === 'profilePicture' && column.render) {
             return column.render(item);
@@ -376,7 +662,6 @@ export default function PlayersPage() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Enter full name"
-                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -385,8 +670,7 @@ export default function PlayersPage() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="Enter email address"
-                    required
+                    placeholder="Enter email address (Optional)"
                   />
                 </div>
               </div>
@@ -397,8 +681,7 @@ export default function PlayersPage() {
                   <Input
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="Enter phone number"
-                    required
+                    placeholder="Enter phone number (Optional)"
                   />
                 </div>
                 <div className="space-y-2">
@@ -407,7 +690,6 @@ export default function PlayersPage() {
                     type="date"
                     value={formData.dateOfBirth}
                     onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                    required
                   />
                 </div>
               </div>
@@ -417,8 +699,7 @@ export default function PlayersPage() {
                 <Input
                   value={formData.nationality}
                   onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-                  placeholder="Enter nationality"
-                  required
+                  placeholder="Enter nationality (Optional)"
                 />
               </div>
 
@@ -427,8 +708,7 @@ export default function PlayersPage() {
                 <Input
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Enter street address"
-                  required
+                  placeholder="Enter street address (Optional)"
                 />
               </div>
 
@@ -438,8 +718,7 @@ export default function PlayersPage() {
                   <Input
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    placeholder="City"
-                    required
+                    placeholder="City (Optional)"
                   />
                 </div>
                 <div className="space-y-2">
@@ -447,8 +726,7 @@ export default function PlayersPage() {
                   <Input
                     value={formData.state}
                     onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    placeholder="State"
-                    required
+                    placeholder="State (Optional)"
                   />
                 </div>
                 <div className="space-y-2">
@@ -456,8 +734,7 @@ export default function PlayersPage() {
                   <Input
                     value={formData.postalCode}
                     onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                    placeholder="Postal code"
-                    required
+                    placeholder="Postal code (Optional)"
                   />
                 </div>
               </div>
@@ -472,7 +749,6 @@ export default function PlayersPage() {
                     className="w-full p-2 border rounded-md bg-background"
                     value={formData.position}
                     onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                    required
                   >
                     {POSITIONS.map((position) => (
                       <option key={position} value={position}>{position}</option>
@@ -487,7 +763,6 @@ export default function PlayersPage() {
                     max="99"
                     value={formData.jerseyNumber}
                     onChange={(e) => setFormData({ ...formData, jerseyNumber: Number(e.target.value) })}
-                    required
                   />
                 </div>
               </div>
@@ -499,7 +774,6 @@ export default function PlayersPage() {
                     type="date"
                     value={formData.joinDate}
                     onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
-                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -508,30 +782,17 @@ export default function PlayersPage() {
                     type="date"
                     value={formData.contractUntil}
                     onChange={(e) => setFormData({ ...formData, contractUntil: e.target.value })}
-                    required
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Market Value (€)</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="100000"
-                    value={formData.marketValue}
-                    onChange={(e) => setFormData({ ...formData, marketValue: Number(e.target.value) })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
                   <label className="text-sm font-medium">Status</label>
                   <select
                     className="w-full p-2 border rounded-md bg-background"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as Player['status'] })}
-                    required
                   >
                     {STATUS_OPTIONS.map((status) => (
                       <option key={status} value={status}>{status}</option>
@@ -550,7 +811,6 @@ export default function PlayersPage() {
                     value={formData.nicNumber}
                     onChange={(e) => setFormData({ ...formData, nicNumber: e.target.value })}
                     placeholder="Enter NIC number"
-                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -559,7 +819,6 @@ export default function PlayersPage() {
                     value={formData.ffslNumber}
                     onChange={(e) => setFormData({ ...formData, ffslNumber: e.target.value })}
                     placeholder="Enter FFSL number"
-                    required
                   />
                 </div>
               </div>
@@ -596,6 +855,17 @@ export default function PlayersPage() {
           </div>
         </form>
       </Modal>
+
+      {viewingPlayer && (
+        <ViewPlayerModal
+          player={viewingPlayer}
+          isOpen={isViewModalOpen}
+          onClose={() => {
+            setIsViewModalOpen(false);
+            setViewingPlayer(null);
+          }}
+        />
+      )}
     </div>
   );
 } 

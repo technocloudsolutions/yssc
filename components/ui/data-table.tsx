@@ -8,8 +8,10 @@ import {
   Search,
   Plus,
   Edit,
-  Trash2
+  Trash2,
+  Eye
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface Column {
   key: string;
@@ -18,7 +20,7 @@ interface Column {
   render?: (item: any) => React.ReactNode;
 }
 
-interface DataTableProps {
+interface DataTableProps<T> {
   title?: string;
   columns: Column[];
   data: any[];
@@ -26,10 +28,11 @@ interface DataTableProps {
   onEdit?: (item: any) => void;
   onDelete?: (id: string) => void;
   onExport?: () => void;
+  onView?: (item: T) => void;
   renderCustomCell?: (column: Column, item: any) => React.ReactNode;
 }
 
-export function DataTable({
+export function DataTable<T>({
   title,
   columns,
   data,
@@ -37,8 +40,9 @@ export function DataTable({
   onEdit,
   onDelete,
   onExport,
+  onView,
   renderCustomCell
-}: DataTableProps) {
+}: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: '', direction: 'asc' });
 
@@ -128,7 +132,7 @@ export function DataTable({
                   </div>
                 </th>
               ))}
-              {(onEdit || onDelete) && (
+              {(onEdit || onDelete || onView) && (
                 <th className="px-6 py-3 text-right">Actions</th>
               )}
             </tr>
@@ -144,7 +148,7 @@ export function DataTable({
                     }
                   </td>
                 ))}
-                {(onEdit || onDelete) && (
+                {(onEdit || onDelete || onView) && (
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     {onEdit && (
                       <button
@@ -161,6 +165,18 @@ export function DataTable({
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
+                    )}
+                    {onView && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onView(row);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                     )}
                   </td>
                 )}

@@ -74,3 +74,34 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 20mm;
+  }
+  
+  body {
+    visibility: hidden;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  .print-container {
+    visibility: visible;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  .print-container > div {
+    max-width: 100% !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  .print:hidden {
+    display: none !important;
+  }
+}

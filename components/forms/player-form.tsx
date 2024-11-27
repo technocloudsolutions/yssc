@@ -45,6 +45,20 @@ export function PlayerForm({ onSubmit, initialData }: PlayerFormProps) {
   const { register, control, handleSubmit, formState: { errors } } = useForm({
     defaultValues: initialData || {
       country: 'Sri Lanka',
+    },
+    mode: 'onSubmit',
+    resolver: async (values) => {
+      const errors: any = {};
+      if (!values.name || values.name.trim() === '') {
+        errors.name = {
+          type: 'required',
+          message: 'Name is required'
+        };
+      }
+      return {
+        values,
+        errors
+      };
     }
   });
 
@@ -105,7 +119,7 @@ export function PlayerForm({ onSubmit, initialData }: PlayerFormProps) {
       {/* Existing form fields... */}
       <div>
         <Input
-          {...register('name', { required: 'Name is required' })}
+          {...register('name')}
           placeholder="Full Name"
         />
         {errors.name && <span className="text-red-500">{errors.name.message?.toString()}</span>}
@@ -113,22 +127,16 @@ export function PlayerForm({ onSubmit, initialData }: PlayerFormProps) {
 
       <div>
         <Input
-          {...register('email', { 
-            required: 'Email is required',
-            pattern: {
-              value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-              message: 'Invalid email address'
-            }
-          })}
+          {...register('email')}
           type="email"
-          placeholder="Email"
+          placeholder="Email (Optional)"
         />
       </div>
 
       <div>
         <Input
-          {...register('phone', { required: 'Phone is required' })}
-          placeholder="Phone"
+          {...register('phone')}
+          placeholder="Phone (Optional)"
         />
       </div>
 
@@ -177,38 +185,36 @@ export function PlayerForm({ onSubmit, initialData }: PlayerFormProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <Input
-          {...register('nicNo', { required: 'NIC No is required' })}
-          placeholder="NIC No"
+          {...register('nicNo')}
+          placeholder="NIC No (Optional)"
         />
         <Input
-          {...register('ffslNo', { required: 'FFSL No is required' })}
-          placeholder="FFSL No"
+          {...register('ffslNo')}
+          placeholder="FFSL No (Optional)"
         />
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-          Date of Birth
+          Date of Birth (Optional)
         </label>
         <Input
-          {...register('dateOfBirth', { required: 'Date of Birth is required' })}
+          {...register('dateOfBirth')}
           type="date"
           placeholder="Date of Birth"
         />
-        {errors.dateOfBirth && <span className="text-red-500 text-sm">{errors.dateOfBirth.message?.toString()}</span>}
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-          Join Date
+          Join Date (Optional)
         </label>
         <Input
-          {...register('joinDate', { required: 'Join Date is required' })}
+          {...register('joinDate')}
           type="date"
           placeholder="Join Date"
           defaultValue={new Date().toISOString().split('T')[0]}
         />
-        {errors.joinDate && <span className="text-red-500 text-sm">{errors.joinDate.message?.toString()}</span>}
       </div>
 
       <div className="grid grid-cols-2 gap-4">

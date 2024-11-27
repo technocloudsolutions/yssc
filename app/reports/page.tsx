@@ -246,6 +246,23 @@ const columns = [
           variant="outline"
           size="sm"
           onClick={() => {
+            const content = formatReportForPrint(report);
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+              printWindow.document.write(content);
+              printWindow.document.close();
+              printWindow.focus();
+            }
+          }}
+          className="flex items-center gap-1"
+        >
+          <FileText className="h-4 w-4" />
+          View Report
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
             const content = formatReportForDownload(report);
             const blob = new Blob([content], { type: 'application/json' });
             const url = window.URL.createObjectURL(blob);
