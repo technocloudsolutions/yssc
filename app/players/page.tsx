@@ -350,48 +350,6 @@ const STATUS_OPTIONS = [
   'Transfer Listed'
 ] as const;
 
-const columns = [
-  {
-    key: 'profilePicture',
-    label: '',
-    sortable: false,
-    render: (player: Player) => (
-      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
-        {player.profilePicture ? (
-          <img 
-            src={player.profilePicture} 
-            alt={player.name}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = '/placeholder-avatar.png'; // Add a placeholder image
-            }}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400">
-            <Users className="h-5 w-5" />
-          </div>
-        )}
-      </div>
-    )
-  },
-  { key: 'name', label: 'Name', sortable: true },
-  { key: 'position', label: 'Position', sortable: true },
-  { key: 'jerseyNumber', label: 'Jersey', sortable: true },
-  { key: 'nationality', label: 'Nationality', sortable: true },
-  { key: 'dateOfBirth', label: 'Date of Birth', sortable: true },
-  { key: 'contractUntil', label: 'Contract Until', sortable: true },
-  { key: 'status', label: 'Status', sortable: true },
-];
-
-// Add this new function before the PlayersPage component
-const validateFormData = (data: Omit<Player, 'id'>) => {
-  if (!data.name || data.name.trim() === '') {
-    return { isValid: false, message: 'Name is required' };
-  }
-  return { isValid: true, message: '' };
-};
-
 export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -554,6 +512,79 @@ export default function PlayersPage() {
   const handleView = (player: Player) => {
     setViewingPlayer(player);
     setIsViewModalOpen(true);
+  };
+
+  const columns = [
+    {
+      key: 'profilePicture',
+      label: '',
+      sortable: false,
+      render: (player: Player) => (
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+          {player.profilePicture ? (
+            <img 
+              src={player.profilePicture} 
+              alt={player.name}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = '/placeholder-avatar.png';
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-400">
+              <Users className="h-5 w-5" />
+            </div>
+          )}
+        </div>
+      )
+    },
+    { key: 'name', label: 'Name', sortable: true },
+    { key: 'position', label: 'Position', sortable: true },
+    { key: 'jerseyNumber', label: 'Jersey', sortable: true },
+    { key: 'nationality', label: 'Nationality', sortable: true },
+    { key: 'dateOfBirth', label: 'Date of Birth', sortable: true },
+    { key: 'contractUntil', label: 'Contract Until', sortable: true },
+    { key: 'status', label: 'Status', sortable: true },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      render: (player: Player) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleView(player)}
+          >
+            View
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleEdit(player)}
+          >
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-red-600 hover:text-red-700"
+            onClick={() => handleDelete(player.id)}
+          >
+            Delete
+          </Button>
+        </div>
+      )
+    }
+  ];
+
+  // Add this new function before the PlayersPage component
+  const validateFormData = (data: Omit<Player, 'id'>) => {
+    if (!data.name || data.name.trim() === '') {
+      return { isValid: false, message: 'Name is required' };
+    }
+    return { isValid: true, message: '' };
   };
 
   return (

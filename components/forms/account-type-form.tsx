@@ -14,7 +14,8 @@ export function AccountTypeForm({ onSubmit, initialData }: AccountTypeFormProps)
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: initialData || {
       type: 'Income',
-      status: 'Active'
+      status: 'Active',
+      balance: 0
     }
   });
 
@@ -49,18 +50,30 @@ export function AccountTypeForm({ onSubmit, initialData }: AccountTypeFormProps)
         />
       </div>
 
-      {initialData && (
-        <div>
-          <label className="block text-sm font-medium mb-1">Status</label>
-          <select
-            {...register('status')}
-            className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg"
-          >
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </div>
-      )}
+      <div>
+        <label className="block text-sm font-medium mb-1">Balance (LKR)</label>
+        <Input
+          type="number"
+          step="0.01"
+          {...register('balance', { 
+            valueAsNumber: true,
+            validate: (value) => value >= 0 || 'Balance cannot be negative'
+          })}
+          placeholder="Enter balance"
+        />
+        {errors.balance && <span className="text-red-500 text-sm">{errors.balance.message?.toString()}</span>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Status</label>
+        <select
+          {...register('status')}
+          className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg"
+        >
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
 
       <Button type="submit" className="w-full">
         {initialData ? 'Update Account Type' : 'Add Account Type'}

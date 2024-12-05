@@ -6,7 +6,7 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, runTransaction, increment } from 'firebase/firestore';
 import { Card } from '@/components/ui/card';
 import { DollarSign, TrendingUp, TrendingDown, PiggyBank, FileText, Image as ImageIcon, File, X, Info, ClipboardList, User, Paperclip, Upload, FileType, Link2, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useDataOperations, Collection } from '@/hooks/useDataOperations';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReceiptForm } from '@/components/forms/receipt-form';
+import { useAuth } from "@/hooks/useAuth";
+import { formatLKR } from '@/lib/utils';
 
 interface Transaction {
   id: string;
@@ -31,6 +33,22 @@ interface Transaction {
   updatedAt?: string;
   receiptIssued: boolean;
   receiptNo: string;
+}
+
+interface AccountType {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  status: string;
+  createdAt: string;
+  balance?: number;
+  bankDetails?: {
+    accountNumber: string;
+    bankName: string;
+    branchName: string;
+    swiftCode?: string;
+  };
 }
 
 const STATUS_OPTIONS = ['Pending', 'Completed', 'Cancelled'] as const;
@@ -100,6 +118,7 @@ interface TransactionFormData {
   payee: string;
   payeeType: string;
   attachments: string[];
+  bankAccount?: string;
 }
 
 // Add this helper function for file icons
@@ -134,6 +153,7 @@ const validateForm = (data: TransactionFormData): { isValid: boolean; errors: st
   if (data.transactionType === 'Expense') {
     if (!data.payeeType) errors.push("Payee type is required");
     if (!data.payee.trim()) errors.push("Payee name is required");
+    if (data.paymentMethod === 'Bank Transfer' && !data.bankAccount) errors.push("Bank account is required for bank transfers");
   }
 
   return {
@@ -143,6 +163,7 @@ const validateForm = (data: TransactionFormData): { isValid: boolean; errors: st
 };
 
 export default function FinancePage() {
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const { items: transactionItems, formatAmount } = useDataOperations('transactions' as Collection);
   const [accountTypes, setAccountTypes] = useState<string[]>([]);
@@ -151,7 +172,9 @@ export default function FinancePage() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [payeeSuggestions, setPayeeSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [formError, setFormError] = useState('');
   const { toast } = useToast();
+  const [bankAccounts, setBankAccounts] = useState<AccountType[]>([]);
 
   const [formData, setFormData] = useState<TransactionFormData>({
     date: new Date().toISOString().split('T')[0],
@@ -164,7 +187,8 @@ export default function FinancePage() {
     category: '',
     payee: '',
     payeeType: '',
-    attachments: []
+    attachments: [],
+    bankAccount: ''
   });
 
   const [uploading, setUploading] = useState(false);
@@ -181,10 +205,28 @@ export default function FinancePage() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
   useEffect(() => {
-    fetchTransactions();
-    fetchAccountTypes();
-    fetchCategories();
+    const init = async () => {
+      try {
+        await Promise.all([
+          fetchTransactions(),
+          fetchAccountTypes(),
+          fetchCategories(),
+          fetchBankAccounts()
+        ]);
+      } catch (error) {
+        console.error('Error initializing data:', error);
+      }
+    };
+    init();
   }, []);
+
+  // Add this effect to refetch bank accounts when payment method changes to Bank Transfer
+  useEffect(() => {
+    if (formData.paymentMethod === 'Bank Transfer' && bankAccounts.length === 0) {
+      console.log('Payment method is Bank Transfer but no bank accounts loaded, fetching...');
+      fetchBankAccounts();
+    }
+  }, [formData.paymentMethod]);
 
   const fetchTransactions = async () => {
     try {
@@ -203,13 +245,38 @@ export default function FinancePage() {
   const fetchAccountTypes = async () => {
     try {
       const accountTypesRef = collection(db, 'accountTypes');
-      const snapshot = await getDocs(accountTypesRef);
-      const accountTypeNames = snapshot.docs.map(doc => doc.data().name);
-      setAccountTypes(accountTypeNames);
+
+      if (formData.transactionType === 'Expense') {
+        // For expenses, get both bank accounts and expense types
+        const bankQuery = query(accountTypesRef, where('accountType', '==', 'Bank'));
+        const bankSnapshot = await getDocs(bankQuery);
+        const bankAccounts = bankSnapshot.docs.map(doc => ({
+          name: doc.data().name,
+          type: doc.data().accountType
+        }));
+
+        // Filter out any undefined or null values and get just the names
+        const validBankAccounts = bankAccounts
+          .filter(account => account.name)
+          .map(account => account.name);
+
+        // Set account types including both bank accounts and expense types
+        setAccountTypes([...validBankAccounts, ...Array.from(EXPENSE_ACCOUNT_TYPES)]);
+      } else {
+        // For income, keep existing behavior
+        const snapshot = await getDocs(accountTypesRef);
+        const accountTypeNames = snapshot.docs.map(doc => doc.data().name);
+        setAccountTypes(accountTypeNames);
+      }
     } catch (error) {
       console.error('Error fetching account types:', error);
     }
   };
+
+  // Make sure to refresh when transaction type changes
+  useEffect(() => {
+    fetchAccountTypes();
+  }, [formData.transactionType]);
 
   const fetchCategories = async () => {
     try {
@@ -264,69 +331,119 @@ export default function FinancePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
-    const { isValid, errors } = validateForm(formData);
-    
-    if (!isValid) {
-      // Show error toast with all validation errors
+    if (!user) {
       toast({
         variant: "destructive",
-        title: "Validation Error",
-        description: (
-          <div className="space-y-2">
-            <p>Please fix the following errors:</p>
-            <ul className="list-disc pl-4">
-              {errors.map((error, index) => (
-                <li key={index}>{error}</li>
-              ))}
-            </ul>
-          </div>
-        )
+        title: "Error",
+        description: "You must be logged in to perform this action"
       });
       return;
     }
 
     try {
-      setUploading(true); // Show loading state
+      setUploading(true);
       
       const transactionData = {
         ...formData,
         type: formData.transactionType,
         amount: Number(formData.amount),
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        userId: user.uid
       };
 
       if (editingTransaction) {
         const transactionRef = doc(db, 'transactions', editingTransaction.id);
         await updateDoc(transactionRef, transactionData);
-        toast({
-          variant: "success",
-          title: "Success",
-          description: "Transaction updated successfully"
-        });
       } else {
-        await addDoc(collection(db, 'transactions'), transactionData);
-        toast({
-          variant: "success",
-          title: "Success",
-          description: "Transaction added successfully"
-        });
+        // Create new transaction document first
+        const transactionRef = await addDoc(collection(db, 'transactions'), transactionData);
+
+        // If it's a completed transaction, update account balance
+        if (formData.status === 'Completed') {
+          try {
+            // If it's a bank transfer, update the bank account balance
+            if (formData.paymentMethod === 'Bank Transfer' && formData.bankAccount) {
+              const bankAccountRef = doc(db, 'accountTypes', formData.bankAccount);
+              await runTransaction(db, async (transaction) => {
+                const bankAccountDoc = await transaction.get(bankAccountRef);
+                if (!bankAccountDoc.exists()) {
+                  throw new Error('Bank account not found');
+                }
+
+                const currentBalance = bankAccountDoc.data().balance || 0;
+                const newBalance = formData.transactionType === 'Income' 
+                  ? currentBalance + Number(formData.amount)
+                  : currentBalance - Number(formData.amount);
+
+                if (newBalance < 0) {
+                  throw new Error('Insufficient funds in bank account');
+                }
+
+                transaction.update(bankAccountRef, {
+                  balance: newBalance,
+                  lastUpdated: new Date().toISOString()
+                });
+              });
+            }
+
+            // Update account type balance as before
+            const accountTypesRef = collection(db, 'accountTypes');
+            const accountQuery = query(accountTypesRef, where('name', '==', formData.accountType));
+            const accountSnapshot = await getDocs(accountQuery);
+
+            if (!accountSnapshot.empty) {
+              const account = accountSnapshot.docs[0];
+              const accountRef = doc(db, 'accountTypes', account.id);
+              const currentBalance = account.data().balance || 0;
+              
+              const balanceChange = formData.transactionType === 'Income' 
+                ? Number(formData.amount) 
+                : -Number(formData.amount);
+
+              await updateDoc(accountRef, {
+                balance: currentBalance + balanceChange,
+                lastUpdated: new Date().toISOString()
+              });
+            }
+          } catch (error: any) {
+            console.error('Error updating balances:', error);
+            // If there's an error with the bank account update, delete the transaction
+            if (error.message === 'Insufficient funds in bank account') {
+              await deleteDoc(doc(db, 'transactions', transactionRef.id));
+              toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Insufficient funds in bank account"
+              });
+              return;
+            }
+            toast({
+              variant: "destructive",
+              title: "Warning",
+              description: "Transaction saved but account balance not updated. Please update manually."
+            });
+          }
+        }
       }
-      
+
       setIsModalOpen(false);
       setEditingTransaction(null);
       resetForm();
       fetchTransactions();
+      toast({
+        title: editingTransaction ? "Transaction Updated" : "Transaction Created",
+        description: `Successfully ${editingTransaction ? 'updated' : 'created'} transaction`
+      });
     } catch (error) {
       console.error('Error saving transaction:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to save transaction. Please try again."
+        description: "There was an error saving the transaction"
       });
     } finally {
-      setUploading(false); // Hide loading state
+      setUploading(false);
     }
   };
 
@@ -336,7 +453,7 @@ export default function FinancePage() {
         await deleteDoc(doc(db, 'transactions', id));
         fetchTransactions();
         toast({
-          variant: "success",
+          variant: "default",
           title: "Success",
           description: "Transaction deleted successfully"
         });
@@ -363,8 +480,11 @@ export default function FinancePage() {
       category: '',
       payee: '',
       payeeType: '',
-      attachments: []
+      attachments: [],
+      bankAccount: ''
     });
+    setSelectedAttachments([]);
+    setCurrentAttachments([]);
   };
 
   const handleEdit = (transaction: Transaction) => {
@@ -380,7 +500,8 @@ export default function FinancePage() {
       category: transaction.category,
       payee: '',
       payeeType: '',
-      attachments: transaction.attachments || []
+      attachments: transaction.attachments || [],
+      bankAccount: ''
     });
     setIsModalOpen(true);
   };
@@ -408,7 +529,7 @@ export default function FinancePage() {
       }));
 
       toast({
-        variant: "success",
+        variant: "default",
         title: "Success",
         description: "Files uploaded successfully"
       });
@@ -500,11 +621,53 @@ export default function FinancePage() {
               Issue Receipt
             </Button>
           )}
-          {/* ... other action buttons ... */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleEdit(transaction)}
+          >
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-red-600 hover:text-red-700"
+            onClick={() => handleDelete(transaction.id)}
+          >
+            Delete
+          </Button>
         </div>
       )
     }
   ];
+
+  const fetchBankAccounts = async () => {
+    try {
+      console.log('Fetching bank accounts...');
+      const accountTypesRef = collection(db, 'accountTypes');
+      const snapshot = await getDocs(accountTypesRef);
+      
+      const allAccounts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as AccountType[];
+
+      // Filter for accounts that have a balance field and are active
+      const bankAccounts = allAccounts.filter(account => 
+        account.status === 'Active' && 
+        (typeof account.balance !== 'undefined' || account.bankDetails)
+      );
+      
+      console.log('Bank accounts query result:', bankAccounts);
+      setBankAccounts(bankAccounts);
+
+      if (bankAccounts.length === 0) {
+        console.log('No bank accounts found');
+      }
+    } catch (error) {
+      console.error('Error fetching bank accounts:', error);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -740,7 +903,16 @@ export default function FinancePage() {
                   <select
                     className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
                     value={formData.paymentMethod}
-                    onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                    onChange={(e) => {
+                      const newPaymentMethod = e.target.value;
+                      console.log('Payment method changed to:', newPaymentMethod);
+                      console.log('Current bank accounts:', bankAccounts);
+                      console.log('Bank accounts length:', bankAccounts.length);
+                      setFormData({ ...formData, paymentMethod: newPaymentMethod });
+                      if (newPaymentMethod === 'Bank Transfer' && bankAccounts.length === 0) {
+                        fetchBankAccounts();
+                      }
+                    }}
                     required
                   >
                     <option value="">Select Payment Method</option>
@@ -751,6 +923,31 @@ export default function FinancePage() {
                     }
                   </select>
                 </div>
+
+                {formData.paymentMethod === 'Bank Transfer' && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Bank Account</label>
+                    <select
+                      className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
+                      value={formData.bankAccount}
+                      onChange={(e) => setFormData({ ...formData, bankAccount: e.target.value })}
+                      required={formData.paymentMethod === 'Bank Transfer'}
+                    >
+                      <option value="">Select Bank Account</option>
+                      {bankAccounts.length === 0 ? (
+                        <option value="" disabled>Loading bank accounts...</option>
+                      ) : (
+                        bankAccounts
+                          .filter(account => account.status === 'Active')
+                          .map((account) => (
+                            <option key={account.id} value={account.id}>
+                              {account.name} ({formatLKR(account.balance || 0)})
+                            </option>
+                          ))
+                      )}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Category</label>

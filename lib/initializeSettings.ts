@@ -21,7 +21,46 @@ const defaultAccountTypes = [
   { name: 'Match Day Revenue', type: 'Income', description: 'Revenue from matches', status: 'Active' },
   { name: 'Sponsorship', type: 'Income', description: 'Sponsorship income', status: 'Active' },
   { name: 'Player Wages', type: 'Expense', description: 'Player salaries', status: 'Active' },
-  { name: 'Operating Costs', type: 'Expense', description: 'Daily operation costs', status: 'Active' }
+  { name: 'Operating Costs', type: 'Expense', description: 'Daily operation costs', status: 'Active' },
+  { 
+    name: 'Main Operating Account',
+    type: 'Bank',
+    description: 'Primary bank account for club operations',
+    status: 'Active',
+    balance: 1000000,
+    bankDetails: {
+      bankName: 'Bank of Ceylon',
+      accountNumber: '1234567890',
+      branchName: 'Main Branch',
+      swiftCode: 'BCEYLKLX'
+    }
+  },
+  { 
+    name: 'Player Salaries Account',
+    type: 'Bank',
+    description: 'Dedicated account for player salaries',
+    status: 'Active',
+    balance: 500000,
+    bankDetails: {
+      bankName: 'Commercial Bank',
+      accountNumber: '0987654321',
+      branchName: 'City Branch',
+      swiftCode: 'CCEYLKLX'
+    }
+  },
+  { 
+    name: 'Revenue Collection Account',
+    type: 'Bank',
+    description: 'Account for match day and sponsorship revenue',
+    status: 'Active',
+    balance: 750000,
+    bankDetails: {
+      bankName: 'Sampath Bank',
+      accountNumber: '5678901234',
+      branchName: 'Sports Complex Branch',
+      swiftCode: 'SCEYLKLX'
+    }
+  }
 ];
 
 const defaultCategories = [

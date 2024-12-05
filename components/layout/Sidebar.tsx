@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   Wallet,
+  Building2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
@@ -25,6 +26,7 @@ const Sidebar = () => {
     { title: 'Players', icon: Users, href: '/players' },
     { title: 'Staff', icon: UserCog, href: '/staff' },
     { title: 'Finance', icon: DollarSign, href: '/finance' },
+    { title: 'Bank Accounts', icon: Building2, href: '/bank-accounts' },
     { title: 'Reports', icon: FileText, href: '/reports' },
     { title: 'Player Expenses', icon: ClipboardList, href: '/reports/player-expenses' },
     { title: 'Category Expenses', icon: BarChart3, href: '/reports/category-expenses' },

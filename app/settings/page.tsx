@@ -44,31 +44,6 @@ interface Category {
   status: 'Active' | 'Inactive';
 }
 
-const departmentColumns = [
-  { key: 'name', label: 'Department Name', sortable: true },
-  { key: 'description', label: 'Description', sortable: true },
-];
-
-const roleColumns = [
-  { key: 'name', label: 'Role Name', sortable: true },
-  { key: 'department', label: 'Department', sortable: true },
-  { key: 'description', label: 'Description', sortable: true },
-];
-
-const accountTypeColumns = [
-  { key: 'name', label: 'Account Name', sortable: true },
-  { key: 'type', label: 'Type', sortable: true },
-  { key: 'description', label: 'Description', sortable: true },
-  { key: 'status', label: 'Status', sortable: true },
-];
-
-const categoryColumns = [
-  { key: 'name', label: 'Category Name', sortable: true },
-  { key: 'type', label: 'Type', sortable: true },
-  { key: 'description', label: 'Description', sortable: true },
-  { key: 'status', label: 'Status', sortable: true },
-];
-
 const mockCategories: Category[] = [
   // Income Categories
   { id: '1', name: 'Match Revenue', type: 'Income', status: 'Active' },
@@ -272,6 +247,139 @@ export default function SettingsPage() {
       alert('Error initializing settings. Please try again.');
     }
   };
+
+  const departmentColumns = [
+    { key: 'name', label: 'Department Name', sortable: true },
+    { key: 'description', label: 'Description', sortable: true },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      render: (department: any) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setEditingDepartment(department);
+              setIsDepartmentModalOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-red-600 hover:text-red-700"
+            onClick={() => handleDeleteDepartment(department.id)}
+          >
+            Delete
+          </Button>
+        </div>
+      )
+    }
+  ];
+
+  const roleColumns = [
+    { key: 'name', label: 'Role Name', sortable: true },
+    { key: 'department', label: 'Department', sortable: true },
+    { key: 'description', label: 'Description', sortable: true },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      render: (role: any) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setEditingRole(role);
+              setIsRoleModalOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-red-600 hover:text-red-700"
+            onClick={() => handleDeleteRole(role.id)}
+          >
+            Delete
+          </Button>
+        </div>
+      )
+    }
+  ];
+
+  const accountTypeColumns = [
+    { key: 'name', label: 'Account Name', sortable: true },
+    { key: 'type', label: 'Type', sortable: true },
+    { key: 'description', label: 'Description', sortable: true },
+    { key: 'status', label: 'Status', sortable: true },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      render: (accountType: any) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setEditingAccountType(accountType);
+              setIsAccountTypeModalOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-red-600 hover:text-red-700"
+            onClick={() => handleDeleteAccountType(accountType.id)}
+          >
+            Delete
+          </Button>
+        </div>
+      )
+    }
+  ];
+
+  const categoryColumns = [
+    { key: 'name', label: 'Category Name', sortable: true },
+    { key: 'type', label: 'Type', sortable: true },
+    { key: 'description', label: 'Description', sortable: true },
+    { key: 'status', label: 'Status', sortable: true },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      render: (category: any) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setEditingCategory(category);
+              setIsCategoryModalOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-red-600 hover:text-red-700"
+            onClick={() => handleDeleteCategory(category.id)}
+          >
+            Delete
+          </Button>
+        </div>
+      )
+    }
+  ];
 
   return (
     <div className="space-y-6">

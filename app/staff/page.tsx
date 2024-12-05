@@ -33,306 +33,6 @@ interface StaffMember {
 
 const STATUS_OPTIONS = ['Active', 'On Leave', 'Inactive'] as const;
 
-const columns = [
-  {
-    key: 'profilePicture',
-    label: '',
-    sortable: false,
-    render: (staff: StaffMember) => (
-      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
-        {staff.profilePicture ? (
-          <img 
-            src={staff.profilePicture} 
-            alt={staff.name}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = '/placeholder-avatar.png';
-            }}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400">
-            <Users className="h-5 w-5" />
-          </div>
-        )}
-      </div>
-    )
-  },
-  { key: 'name', label: 'Name', sortable: true },
-  { key: 'position', label: 'Position', sortable: true },
-  { key: 'department', label: 'Department', sortable: true },
-  { key: 'email', label: 'Email', sortable: true },
-  { key: 'phone', label: 'Phone', sortable: true },
-  { key: 'joinDate', label: 'Join Date', sortable: true },
-  { key: 'status', label: 'Status', sortable: true },
-];
-
-// Add this validation function before the StaffPage component
-const validateFormData = (data: Omit<StaffMember, 'id'>) => {
-  // Personal Information validation
-  if (!data.name || !data.email || !data.phone || 
-      !data.address || !data.city || !data.state || !data.postalCode) {
-    return { isValid: false, tab: 'personal', message: 'Please fill all personal information fields' };
-  }
-
-  // Professional Information validation
-  if (!data.position || !data.department || !data.joinDate || !data.status) {
-    return { isValid: false, tab: 'professional', message: 'Please fill all professional information fields' };
-  }
-
-  // Additional Information validation
-  if (!data.nicNumber) {
-    return { isValid: false, tab: 'additional', message: 'Please fill all additional information fields' };
-  }
-
-  return { isValid: true, tab: 'personal' as const, message: '' };
-};
-
-interface ViewModalProps {
-  staff: StaffMember;
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-function ViewStaffModal({ staff, isOpen, onClose }: ViewModalProps) {
-  const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Staff Details - ${staff.name}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              line-height: 1.4;
-              margin: 15px;
-              font-size: 12px;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 15px;
-              padding-bottom: 10px;
-              border-bottom: 1px solid #ccc;
-            }
-            .header h1 {
-              margin: 5px 0;
-              font-size: 20px;
-            }
-            .header p {
-              margin: 5px 0;
-              color: #666;
-            }
-            .staff-image {
-              width: 100px;
-              height: 100px;
-              border-radius: 50%;
-              margin: 0 auto;
-              display: block;
-              object-fit: cover;
-              margin-bottom: 10px;
-            }
-            .section {
-              margin-bottom: 15px;
-            }
-            .section-title {
-              font-size: 14px;
-              font-weight: bold;
-              margin-bottom: 8px;
-              padding-bottom: 3px;
-              border-bottom: 1px solid #eee;
-              color: #333;
-            }
-            .info-grid {
-              display: grid;
-              grid-template-columns: repeat(2, 1fr);
-              gap: 8px;
-            }
-            .info-item {
-              margin-bottom: 5px;
-            }
-            .info-label {
-              font-weight: bold;
-              color: #666;
-              font-size: 11px;
-              margin-bottom: 2px;
-            }
-            .info-value {
-              color: #333;
-            }
-            @media print {
-              body {
-                margin: 10px;
-                padding: 0;
-              }
-              .section {
-                page-break-inside: avoid;
-              }
-              @page {
-                margin: 0.5cm;
-                size: A4;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <img 
-              src="${staff.profilePicture || '/placeholder-avatar.png'}" 
-              alt="${staff.name}"
-              class="staff-image"
-            />
-            <h1>${staff.name}</h1>
-            <p>${staff.position}</p>
-          </div>
-
-          <div class="section">
-            <h2 class="section-title">Personal Information</h2>
-            <div class="info-grid">
-              <div class="info-item">
-                <div class="info-label">Email</div>
-                <div class="info-value">${staff.email || 'N/A'}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Phone</div>
-                <div class="info-value">${staff.phone || 'N/A'}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Address</div>
-                <div class="info-value">${staff.address || 'N/A'}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">NIC</div>
-                <div class="info-value">${staff.nicNumber || 'N/A'}</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="section">
-            <h2 class="section-title">Employment Information</h2>
-            <div class="info-grid">
-              <div class="info-item">
-                <div class="info-label">Role</div>
-                <div class="info-value">${staff.position}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Department</div>
-                <div class="info-value">${staff.department}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Join Date</div>
-                <div class="info-value">${staff.joinDate || 'N/A'}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Status</div>
-                <div class="info-value">${staff.status}</div>
-              </div>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Staff Details">
-      <div className="space-y-6">
-        {/* Header with staff image and basic info */}
-        <div className="flex items-center gap-4">
-          <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200">
-            {staff.profilePicture ? (
-              <img 
-                src={staff.profilePicture} 
-                alt={staff.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-400">
-                <Users className="h-8 w-8" />
-              </div>
-            )}
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold">{staff.name}</h2>
-            <p className="text-muted-foreground">{staff.position}</p>
-          </div>
-        </div>
-
-        <Tabs defaultValue="personal" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="personal">Personal</TabsTrigger>
-            <TabsTrigger value="employment">Employment</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="personal" className="space-y-4">
-            <Card className="p-4">
-              <dl className="grid grid-cols-2 gap-4">
-                <div>
-                  <dt className="text-sm font-medium text-muted-foreground">Email</dt>
-                  <dd>{staff.email || 'N/A'}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-muted-foreground">Phone</dt>
-                  <dd>{staff.phone || 'N/A'}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-muted-foreground">Address</dt>
-                  <dd>{staff.address || 'N/A'}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-muted-foreground">NIC</dt>
-                  <dd>{staff.nicNumber || 'N/A'}</dd>
-                </div>
-              </dl>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="employment" className="space-y-4">
-            <Card className="p-4">
-              <dl className="grid grid-cols-2 gap-4">
-                <div>
-                  <dt className="text-sm font-medium text-muted-foreground">Role</dt>
-                  <dd>{staff.position}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-muted-foreground">Department</dt>
-                  <dd>{staff.department}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-muted-foreground">Join Date</dt>
-                  <dd>{staff.joinDate || 'N/A'}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-muted-foreground">Status</dt>
-                  <dd>{staff.status}</dd>
-                </div>
-              </dl>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={handlePrint}>
-            <Printer className="h-4 w-4 mr-2" />
-            Print
-          </Button>
-          <Button onClick={onClose}>Close</Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
 export default function StaffPage() {
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -361,6 +61,337 @@ export default function StaffPage() {
 
   const [viewingStaff, setViewingStaff] = useState<StaffMember | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+
+  const columns = [
+    {
+      key: 'profilePicture',
+      label: '',
+      sortable: false,
+      render: (staff: StaffMember) => (
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
+          {staff.profilePicture ? (
+            <img 
+              src={staff.profilePicture} 
+              alt={staff.name}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = '/placeholder-avatar.png';
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-400">
+              <Users className="h-5 w-5" />
+            </div>
+          )}
+        </div>
+      )
+    },
+    { key: 'name', label: 'Name', sortable: true },
+    { key: 'position', label: 'Position', sortable: true },
+    { key: 'department', label: 'Department', sortable: true },
+    { key: 'email', label: 'Email', sortable: true },
+    { key: 'phone', label: 'Phone', sortable: true },
+    { key: 'joinDate', label: 'Join Date', sortable: true },
+    { key: 'status', label: 'Status', sortable: true },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      render: (staff: StaffMember) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleView(staff)}
+          >
+            View
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleEdit(staff)}
+          >
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-red-600 hover:text-red-700"
+            onClick={() => handleDelete(staff.id)}
+          >
+            Delete
+          </Button>
+        </div>
+      )
+    }
+  ];
+
+  // Add this validation function before the StaffPage component
+  const validateFormData = (data: Omit<StaffMember, 'id'>) => {
+    // Personal Information validation
+    if (!data.name || !data.email || !data.phone || 
+        !data.address || !data.city || !data.state || !data.postalCode) {
+      return { isValid: false, tab: 'personal', message: 'Please fill all personal information fields' };
+    }
+
+    // Professional Information validation
+    if (!data.position || !data.department || !data.joinDate || !data.status) {
+      return { isValid: false, tab: 'professional', message: 'Please fill all professional information fields' };
+    }
+
+    // Additional Information validation
+    if (!data.nicNumber) {
+      return { isValid: false, tab: 'additional', message: 'Please fill all additional information fields' };
+    }
+
+    return { isValid: true, tab: 'personal' as const, message: '' };
+  };
+
+  interface ViewModalProps {
+    staff: StaffMember;
+    isOpen: boolean;
+    onClose: () => void;
+  }
+
+  function ViewStaffModal({ staff, isOpen, onClose }: ViewModalProps) {
+    const handlePrint = () => {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) return;
+
+      const printContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Staff Details - ${staff.name}</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                line-height: 1.4;
+                margin: 15px;
+                font-size: 12px;
+              }
+              .header {
+                text-align: center;
+                margin-bottom: 15px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #ccc;
+              }
+              .header h1 {
+                margin: 5px 0;
+                font-size: 20px;
+              }
+              .header p {
+                margin: 5px 0;
+                color: #666;
+              }
+              .staff-image {
+                width: 100px;
+                height: 100px;
+                border-radius: 50%;
+                margin: 0 auto;
+                display: block;
+                object-fit: cover;
+                margin-bottom: 10px;
+              }
+              .section {
+                margin-bottom: 15px;
+              }
+              .section-title {
+                font-size: 14px;
+                font-weight: bold;
+                margin-bottom: 8px;
+                padding-bottom: 3px;
+                border-bottom: 1px solid #eee;
+                color: #333;
+              }
+              .info-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+              }
+              .info-item {
+                margin-bottom: 5px;
+              }
+              .info-label {
+                font-weight: bold;
+                color: #666;
+                font-size: 11px;
+                margin-bottom: 2px;
+              }
+              .info-value {
+                color: #333;
+              }
+              @media print {
+                body {
+                  margin: 10px;
+                  padding: 0;
+                }
+                .section {
+                  page-break-inside: avoid;
+                }
+                @page {
+                  margin: 0.5cm;
+                  size: A4;
+                }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <img 
+                src="${staff.profilePicture || '/placeholder-avatar.png'}" 
+                alt="${staff.name}"
+                class="staff-image"
+              />
+              <h1>${staff.name}</h1>
+              <p>${staff.position}</p>
+            </div>
+
+            <div class="section">
+              <h2 class="section-title">Personal Information</h2>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Email</div>
+                  <div class="info-value">${staff.email || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Phone</div>
+                  <div class="info-value">${staff.phone || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Address</div>
+                  <div class="info-value">${staff.address || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">NIC</div>
+                  <div class="info-value">${staff.nicNumber || 'N/A'}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2 class="section-title">Employment Information</h2>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Role</div>
+                  <div class="info-value">${staff.position}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Department</div>
+                  <div class="info-value">${staff.department}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Join Date</div>
+                  <div class="info-value">${staff.joinDate || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Status</div>
+                  <div class="info-value">${staff.status}</div>
+                </div>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    };
+
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Staff Details">
+        <div className="space-y-6">
+          {/* Header with staff image and basic info */}
+          <div className="flex items-center gap-4">
+            <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200">
+              {staff.profilePicture ? (
+                <img 
+                  src={staff.profilePicture} 
+                  alt={staff.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                  <Users className="h-8 w-8" />
+                </div>
+              )}
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">{staff.name}</h2>
+              <p className="text-muted-foreground">{staff.position}</p>
+            </div>
+          </div>
+
+          <Tabs defaultValue="personal" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="personal">Personal</TabsTrigger>
+              <TabsTrigger value="employment">Employment</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="personal" className="space-y-4">
+              <Card className="p-4">
+                <dl className="grid grid-cols-2 gap-4">
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Email</dt>
+                    <dd>{staff.email || 'N/A'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Phone</dt>
+                    <dd>{staff.phone || 'N/A'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Address</dt>
+                    <dd>{staff.address || 'N/A'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">NIC</dt>
+                    <dd>{staff.nicNumber || 'N/A'}</dd>
+                  </div>
+                </dl>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="employment" className="space-y-4">
+              <Card className="p-4">
+                <dl className="grid grid-cols-2 gap-4">
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Role</dt>
+                    <dd>{staff.position}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Department</dt>
+                    <dd>{staff.department}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Join Date</dt>
+                    <dd>{staff.joinDate || 'N/A'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Status</dt>
+                    <dd>{staff.status}</dd>
+                  </div>
+                </dl>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
+            <Button onClick={onClose}>Close</Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   useEffect(() => {
     fetchStaff();
