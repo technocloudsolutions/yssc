@@ -6,7 +6,7 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, runTransaction, increment } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, runTransaction, increment, getDoc } from 'firebase/firestore';
 import { Card } from '@/components/ui/card';
 import { DollarSign, TrendingUp, TrendingDown, PiggyBank, FileText, Image as ImageIcon, File, X, Info, ClipboardList, User, Paperclip, Upload, FileType, Link2, Trash2, Eye } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -454,7 +454,63 @@ export default function FinancePage() {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this transaction?')) {
       try {
-        await deleteDoc(doc(db, 'transactions', id));
+        // Get the transaction details before deleting
+        const transactionRef = doc(db, 'transactions', id);
+        const transactionDoc = await getDoc(transactionRef);
+        const transactionData = transactionDoc.data();
+
+        if (!transactionData) {
+          throw new Error('Transaction not found');
+        }
+
+        // Only process balance updates if the transaction was completed
+        if (transactionData.status === 'Completed') {
+          // If it was a bank transfer, update the bank account balance
+          if (transactionData.paymentMethod === 'Bank Transfer' && transactionData.bankAccount) {
+            const bankAccountRef = doc(db, 'accountTypes', transactionData.bankAccount);
+            await runTransaction(db, async (transaction) => {
+              const bankAccountDoc = await transaction.get(bankAccountRef);
+              if (!bankAccountDoc.exists()) {
+                throw new Error('Bank account not found');
+              }
+
+              const currentBalance = bankAccountDoc.data().balance || 0;
+              // Reverse the transaction effect: add for expense, subtract for income
+              const newBalance = transactionData.transactionType === 'Expense' 
+                ? currentBalance + Number(transactionData.amount)
+                : currentBalance - Number(transactionData.amount);
+
+              transaction.update(bankAccountRef, {
+                balance: newBalance,
+                lastUpdated: new Date().toISOString()
+              });
+            });
+          }
+
+          // Update account type balance
+          const accountTypesRef = collection(db, 'accountTypes');
+          const accountQuery = query(accountTypesRef, where('name', '==', transactionData.accountType));
+          const accountSnapshot = await getDocs(accountQuery);
+
+          if (!accountSnapshot.empty) {
+            const account = accountSnapshot.docs[0];
+            const accountRef = doc(db, 'accountTypes', account.id);
+            const currentBalance = account.data().balance || 0;
+            
+            // Reverse the balance change
+            const balanceChange = transactionData.transactionType === 'Income' 
+              ? -Number(transactionData.amount)
+              : Number(transactionData.amount);
+
+            await updateDoc(accountRef, {
+              balance: currentBalance + balanceChange,
+              lastUpdated: new Date().toISOString()
+            });
+          }
+        }
+
+        // Delete the transaction
+        await deleteDoc(transactionRef);
         fetchTransactions();
         toast({
           variant: "default",
