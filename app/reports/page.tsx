@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input';
 import { FileText, Download, Filter, Calendar, Printer } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, query, where } from 'firebase/firestore';
+import { DatePickerWithRange } from "@/components/ui/date-range-picker";
+import { addDays } from "date-fns";
+import { DateRange } from "react-day-picker";
 
 interface Report {
   id: string;
@@ -423,6 +426,10 @@ export default function ReportsPage() {
     summary: '',
     status: 'Generated' as const
   });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: addDays(new Date(), -30), // Default to last 30 days
+    to: new Date()
+  });
 
   useEffect(() => {
     fetchReports();
@@ -484,11 +491,48 @@ export default function ReportsPage() {
     }
   };
 
+  const getFilteredReports = () => {
+    if (!dateRange?.from) return reports;
+    
+    return reports.filter(report => {
+      const reportDate = new Date(report.date);
+      const from = dateRange.from;
+      const to = dateRange.to || dateRange.from;
+      
+      // Add null checks and ensure dates are valid
+      if (!from || !to || !reportDate) return true;
+      
+      // Convert all to timestamps for comparison
+      const reportTimestamp = reportDate.getTime();
+      const fromTimestamp = from.getTime();
+      const toTimestamp = to.getTime();
+      
+      return reportTimestamp >= fromTimestamp && reportTimestamp <= toTimestamp;
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Reports</h1>
         <Button onClick={() => setIsModalOpen(true)}>Generate Report</Button>
+      </div>
+
+      <div className="flex items-center gap-4 py-4">
+        <div className="flex-1">
+          <DatePickerWithRange
+            date={dateRange}
+            onDateChange={setDateRange}
+          />
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setDateRange(undefined)}
+          className="flex items-center gap-2"
+        >
+          <Filter className="h-4 w-4" />
+          Clear Filter
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -513,7 +557,7 @@ export default function ReportsPage() {
 
       <DataTable
         columns={columns}
-        data={reports}
+        data={getFilteredReports()}
         renderCustomCell={(column, item) => {
           if (column.render) {
             return column.render(item);

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, runTransaction, increment } from 'firebase/firestore';
 import { Card } from '@/components/ui/card';
-import { DollarSign, TrendingUp, TrendingDown, PiggyBank, FileText, Image as ImageIcon, File, X, Info, ClipboardList, User, Paperclip, Upload, FileType, Link2, Trash2 } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, PiggyBank, FileText, Image as ImageIcon, File, X, Info, ClipboardList, User, Paperclip, Upload, FileType, Link2, Trash2, Eye } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReceiptForm } from '@/components/forms/receipt-form';
 import { useAuth } from "@/hooks/useAuth";
 import { formatLKR } from '@/lib/utils';
+import { FinanceDetails } from "@/components/finance/finance-details";
 
 interface Transaction {
   id: string;
@@ -203,6 +204,9 @@ export default function FinancePage() {
   const [showReceiptForm, setShowReceiptForm] = useState(false);
 
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -609,6 +613,16 @@ export default function FinancePage() {
       sortable: false,
       render: (transaction: Transaction) => (
         <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleView(transaction)}
+            className="flex items-center gap-1"
+          >
+            <Eye className="h-4 w-4" />
+            View
+          </Button>
+          
           {transaction.type === 'Income' && !transaction.receiptIssued && (
             <Button 
               size="sm" 
@@ -631,7 +645,7 @@ export default function FinancePage() {
           <Button
             size="sm"
             variant="outline"
-            className="text-red-600 hover:text-red-700"
+            className="text-red-500 hover:text-red-700"
             onClick={() => handleDelete(transaction.id)}
           >
             Delete
@@ -667,6 +681,11 @@ export default function FinancePage() {
     } catch (error) {
       console.error('Error fetching bank accounts:', error);
     }
+  };
+
+  const handleView = (record: any) => {
+    setSelectedRecord(record);
+    setIsViewDialogOpen(true);
   };
 
   return (
@@ -1158,6 +1177,12 @@ export default function FinancePage() {
           </div>
         </form>
       </Modal>
+
+      <FinanceDetails
+        isOpen={isViewDialogOpen}
+        onClose={() => setIsViewDialogOpen(false)}
+        record={selectedRecord}
+      />
     </div>
   );
 } 

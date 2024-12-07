@@ -28,7 +28,7 @@ interface Player {
   
   // Professional Information
   position: string;
-  jerseyNumber: number;
+  jerseyNumber?: number;
   joinDate: string;
   contractUntil: string;
   status: 'Active' | 'Injured' | 'On Loan' | 'Transfer Listed';
@@ -366,7 +366,7 @@ export default function PlayersPage() {
     state: '',
     postalCode: '',
     position: 'Midfielder',
-    jerseyNumber: 1,
+    jerseyNumber: undefined,
     joinDate: '',
     contractUntil: '',
     status: 'Active',
@@ -412,15 +412,24 @@ export default function PlayersPage() {
     }
 
     try {
+      // Clean up the data before saving
+      const cleanedData = Object.entries(formData).reduce((acc, [key, value]) => {
+        // Skip empty strings, undefined, and null values
+        if (value !== '' && value !== undefined && value !== null) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+
+      // Add timestamp
+      cleanedData.updatedAt = new Date().toISOString();
+
       if (editingPlayer) {
         const playerRef = doc(db, 'players', editingPlayer.id);
-        await updateDoc(playerRef, {
-          ...formData,
-          updatedAt: new Date().toISOString()
-        });
+        await updateDoc(playerRef, cleanedData);
       } else {
         await addDoc(collection(db, 'players'), {
-          ...formData,
+          ...cleanedData,
           createdAt: new Date().toISOString()
         });
       }
@@ -458,7 +467,7 @@ export default function PlayersPage() {
       state: '',
       postalCode: '',
       position: 'Midfielder',
-      jerseyNumber: 1,
+      jerseyNumber: undefined,
       joinDate: '',
       contractUntil: '',
       status: 'Active',
@@ -787,13 +796,20 @@ export default function PlayersPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Jersey Number</label>
+                  <label className="text-sm font-medium">Jersey Number (Optional)</label>
                   <Input
                     type="number"
                     min="1"
                     max="99"
-                    value={formData.jerseyNumber}
-                    onChange={(e) => setFormData({ ...formData, jerseyNumber: Number(e.target.value) })}
+                    value={formData.jerseyNumber || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFormData({ 
+                        ...formData, 
+                        jerseyNumber: value === '' ? undefined : Number(value)
+                      });
+                    }}
+                    placeholder="Enter jersey number"
                   />
                 </div>
               </div>

@@ -129,10 +129,10 @@ export default function StaffPage() {
 
   // Add this validation function before the StaffPage component
   const validateFormData = (data: Omit<StaffMember, 'id'>) => {
-    // Personal Information validation
-    if (!data.name || !data.email || !data.phone || 
+    // Personal Information validation - remove email from required fields
+    if (!data.name || !data.phone || 
         !data.address || !data.city || !data.state || !data.postalCode) {
-      return { isValid: false, tab: 'personal', message: 'Please fill all personal information fields' };
+      return { isValid: false, tab: 'personal', message: 'Please fill all required personal information fields' };
     }
 
     // Professional Information validation
@@ -644,7 +644,6 @@ export default function StaffPage() {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="Enter email address"
-                    required
                   />
                 </div>
               </div>

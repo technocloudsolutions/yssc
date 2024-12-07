@@ -334,9 +334,9 @@ export function CategoryExpensesReport() {
 
             <div className="w-full md:w-auto">
               <DateRangePicker
-                value={dateRange}
-                onChange={setDateRange}
-                placeholder="Filter by date range"
+                date={dateRange}
+                onDateChange={setDateRange}
+                className="w-full"
               />
             </div>
 

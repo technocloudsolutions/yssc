@@ -13,40 +13,41 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
-interface DateRangePickerProps {
-  value?: DateRange
-  onChange?: (date: DateRange | undefined) => void
-  placeholder?: string
+interface DatePickerProps {
+  date: DateRange | undefined;
+  onDateChange: (date: DateRange | undefined) => void;
+  className?: string;
 }
 
-export function DateRangePicker({
-  value,
-  onChange,
-  placeholder = 'Select date range',
-}: DateRangePickerProps) {
+export function DatePickerWithRange({
+  date,
+  onDateChange,
+  className,
+}: DatePickerProps) {
   return (
-    <div className={cn('grid gap-2')}>
+    <div className={cn("grid gap-2", className)}>
       <Popover>
         <PopoverTrigger asChild>
           <Button
             id="date"
-            variant={'outline'}
+            variant={"outline"}
             className={cn(
-              'w-[300px] justify-start text-left font-normal',
-              !value && 'text-muted-foreground'
+              "w-[300px] justify-start text-left font-normal",
+              !date && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {value?.from ? (
-              value.to ? (
+            {date?.from ? (
+              date.to ? (
                 <>
-                  {format(value.from, 'LLL dd, y')} - {format(value.to, 'LLL dd, y')}
+                  {format(date.from, "LLL dd, y")} -{" "}
+                  {format(date.to, "LLL dd, y")}
                 </>
               ) : (
-                format(value.from, 'LLL dd, y')
+                format(date.from, "LLL dd, y")
               )
             ) : (
-              <span>{placeholder}</span>
+              <span>Pick a date range</span>
             )}
           </Button>
         </PopoverTrigger>
@@ -54,13 +55,15 @@ export function DateRangePicker({
           <Calendar
             initialFocus
             mode="range"
-            defaultMonth={value?.from}
-            selected={value}
-            onSelect={onChange}
+            defaultMonth={date?.from}
+            selected={date}
+            onSelect={onDateChange}
             numberOfMonths={2}
           />
         </PopoverContent>
       </Popover>
     </div>
-  )
-} 
+  );
+}
+
+export const DateRangePicker = DatePickerWithRange; 
