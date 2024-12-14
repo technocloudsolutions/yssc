@@ -4,19 +4,58 @@ import { useForm } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { useState, useEffect } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface CategoryFormProps {
   onSubmit: (data: any) => void;
   initialData?: any;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+}
+
 export function CategoryForm({ onSubmit, initialData }: CategoryFormProps) {
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const [parentCategories, setParentCategories] = useState<Category[]>([]);
+  const { register, handleSubmit, watch, formState: { errors } } = useForm({
     defaultValues: initialData || {
       type: 'Expense',
       status: 'Active'
     }
   });
+
+  const selectedType = watch('type');
+
+  useEffect(() => {
+    fetchParentCategories();
+  }, [selectedType]);
+
+  const fetchParentCategories = async () => {
+    try {
+      const categoriesRef = collection(db, 'categories');
+      const snapshot = await getDocs(categoriesRef);
+      const categories = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Category[];
+      
+      // Filter categories by type and exclude the current category being edited
+      const filteredCategories = categories.filter(category => 
+        category.type === selectedType && 
+        category.status === 'Active' &&
+        (!initialData || category.id !== initialData.id)
+      );
+      
+      setParentCategories(filteredCategories);
+    } catch (error) {
+      console.error('Error fetching parent categories:', error);
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -47,7 +86,11 @@ export function CategoryForm({ onSubmit, initialData }: CategoryFormProps) {
           className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg"
         >
           <option value="">None (Top Level Category)</option>
-          {/* Add parent categories here */}
+          {parentCategories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
         </select>
       </div>
 
