@@ -124,9 +124,35 @@ export function ReceiptForm({ onSubmit, transactionData, initialData }: ReceiptF
           <div>
             <label className="block text-sm font-medium mb-1">Amount (LKR)</label>
             <Input
-              {...register('amount', { required: 'Amount is required' })}
+              {...register('amount', {
+                required: 'Amount is required',
+                validate: {
+                  validAmount: (value) => {
+                    // Convert to number and check if it's valid
+                    const numValue = parseFloat(value);
+                    if (isNaN(numValue)) return 'Please enter a valid amount';
+                    
+                    // Check if it matches the pattern for up to 2 decimal places
+                    if (!/^\d+(\.\d{0,2})?$/.test(value.toString())) {
+                      const floor = Math.floor(numValue);
+                      const ceil = Math.ceil(numValue);
+                      return `Please enter a valid value. The two nearest valid values are ${floor} and ${ceil}.`;
+                    }
+                    
+                    return true;
+                  }
+                }
+              })}
               type="number"
+              step="0.01"
               placeholder="Enter amount"
+              onChange={(e) => {
+                // Format the input to maximum 2 decimal places
+                const value = e.target.value;
+                if (value.includes('.') && value.split('.')[1].length > 2) {
+                  e.target.value = Number(value).toFixed(2);
+                }
+              }}
             />
             {errors.amount && (
               <span className="text-red-500 text-sm">{errors.amount.message?.toString()}</span>
