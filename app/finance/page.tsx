@@ -358,6 +358,60 @@ export default function FinancePage() {
 
       if (editingTransaction) {
         const transactionRef = doc(db, 'transactions', editingTransaction.id);
+        const oldTransactionDoc = await getDoc(transactionRef);
+        const oldTransactionData = oldTransactionDoc.data();
+
+        // Reverse the old transaction's effect on bank account if it was completed
+        if (oldTransactionData?.status === 'Completed' && 
+            oldTransactionData?.paymentMethod === 'Bank Transfer' && 
+            oldTransactionData?.bankAccount) {
+          const bankAccountRef = doc(db, 'accountTypes', oldTransactionData.bankAccount);
+          await runTransaction(db, async (transaction) => {
+            const bankAccountDoc = await transaction.get(bankAccountRef);
+            if (!bankAccountDoc.exists()) {
+              throw new Error('Bank account not found');
+            }
+
+            const currentBalance = bankAccountDoc.data().balance || 0;
+            // Reverse the old transaction effect: add for expense, subtract for income
+            const newBalance = oldTransactionData.transactionType === 'Expense' 
+              ? currentBalance + Number(oldTransactionData.amount)
+              : currentBalance - Number(oldTransactionData.amount);
+
+            transaction.update(bankAccountRef, {
+              balance: newBalance,
+              lastUpdated: new Date().toISOString()
+            });
+          });
+        }
+
+        // Apply the new transaction's effect on bank account if it's completed
+        if (formData.status === 'Completed' && 
+            formData.paymentMethod === 'Bank Transfer' && 
+            formData.bankAccount) {
+          const bankAccountRef = doc(db, 'accountTypes', formData.bankAccount);
+          await runTransaction(db, async (transaction) => {
+            const bankAccountDoc = await transaction.get(bankAccountRef);
+            if (!bankAccountDoc.exists()) {
+              throw new Error('Bank account not found');
+            }
+
+            const currentBalance = bankAccountDoc.data().balance || 0;
+            const newBalance = formData.transactionType === 'Income' 
+              ? currentBalance + Number(formData.amount)
+              : currentBalance - Number(formData.amount);
+
+            if (newBalance < 0) {
+              throw new Error('Insufficient funds in bank account');
+            }
+
+            transaction.update(bankAccountRef, {
+              balance: newBalance,
+              lastUpdated: new Date().toISOString()
+            });
+          });
+        }
+
         await updateDoc(transactionRef, transactionData);
       } else {
         // Create new transaction document first
@@ -513,16 +567,14 @@ export default function FinancePage() {
         await deleteDoc(transactionRef);
         fetchTransactions();
         toast({
-          variant: "default",
           title: "Success",
           description: "Transaction deleted successfully"
         });
       } catch (error) {
         console.error('Error deleting transaction:', error);
         toast({
-          variant: "destructive",
           title: "Error",
-          description: "Failed to delete transaction"
+          description: "Failed to delete transaction. Please try again."
         });
       }
     }

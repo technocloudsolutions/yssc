@@ -129,20 +129,9 @@ export default function StaffPage() {
 
   // Add this validation function before the StaffPage component
   const validateFormData = (data: Omit<StaffMember, 'id'>) => {
-    // Personal Information validation - remove email from required fields
-    if (!data.name || !data.phone || 
-        !data.address || !data.city || !data.state || !data.postalCode) {
-      return { isValid: false, tab: 'personal', message: 'Please fill all required personal information fields' };
-    }
-
-    // Professional Information validation
-    if (!data.position || !data.department || !data.joinDate || !data.status) {
-      return { isValid: false, tab: 'professional', message: 'Please fill all professional information fields' };
-    }
-
-    // Additional Information validation
-    if (!data.nicNumber) {
-      return { isValid: false, tab: 'additional', message: 'Please fill all additional information fields' };
+    // Only validate name field
+    if (!data.name) {
+      return { isValid: false, tab: 'personal', message: 'Please enter the staff member\'s full name' };
     }
 
     return { isValid: true, tab: 'personal' as const, message: '' };
@@ -634,7 +623,6 @@ export default function StaffPage() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Enter full name"
-                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -654,7 +642,6 @@ export default function StaffPage() {
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="Enter phone number"
-                  required
                 />
               </div>
 
@@ -664,7 +651,6 @@ export default function StaffPage() {
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   placeholder="Enter street address"
-                  required
                 />
               </div>
 
@@ -675,7 +661,6 @@ export default function StaffPage() {
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     placeholder="City"
-                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -684,7 +669,6 @@ export default function StaffPage() {
                     value={formData.state}
                     onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                     placeholder="State"
-                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -693,7 +677,6 @@ export default function StaffPage() {
                     value={formData.postalCode}
                     onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
                     placeholder="Postal code"
-                    required
                   />
                 </div>
               </div>
@@ -708,7 +691,6 @@ export default function StaffPage() {
                     value={formData.position}
                     onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                     placeholder="Enter position"
-                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -717,7 +699,6 @@ export default function StaffPage() {
                     className="w-full p-2 border rounded-md bg-background"
                     value={formData.department}
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    required
                   >
                     <option value="">Select Department</option>
                     {departments.map((dept) => (
@@ -734,7 +715,6 @@ export default function StaffPage() {
                     type="date"
                     value={formData.joinDate}
                     onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
-                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -743,7 +723,6 @@ export default function StaffPage() {
                     className="w-full p-2 border rounded-md bg-background"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as StaffMember['status'] })}
-                    required
                   >
                     {STATUS_OPTIONS.map((status) => (
                       <option key={status} value={status}>{status}</option>
@@ -761,7 +740,6 @@ export default function StaffPage() {
                   value={formData.nicNumber}
                   onChange={(e) => setFormData({ ...formData, nicNumber: e.target.value })}
                   placeholder="Enter NIC number"
-                  required
                 />
               </div>
             </TabsContent>
