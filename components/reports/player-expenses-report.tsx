@@ -100,12 +100,17 @@ export function PlayerExpensesReport() {
   });
 
   const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('si-LK', {
+    return `LKR ${amount.toLocaleString('en-US', {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-      style: 'currency',
-      currency: 'LKR'
-    }).format(amount);
+      maximumFractionDigits: 2
+    })}`;
+  };
+
+  const formatAmountForCSV = (amount: number) => {
+    return `LKR ${amount.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
   };
 
   const handleExport = () => {
@@ -117,11 +122,6 @@ export function PlayerExpensesReport() {
       return sum + Number(expense.amount || 0);
     }, 0);
 
-    // Format amounts with currency for CSV
-    const formatAmountForCSV = (amount: number) => {
-      return `LKR ${amount.toFixed(2)}`; // This will return "LKR 1000.00" format
-    };
-    
     // Add filter information to the CSV
     const filters: string[] = [];
     if (selectedCategory) filters.push(selectedCategory);
@@ -367,11 +367,6 @@ export function PlayerExpensesReport() {
   const handleSingleExport = (expense: PlayerExpense) => {
     const amount = parseFloat(expense.amount.toString());
     
-    // Format amounts with currency for CSV
-    const formatAmountForCSV = (amount: number) => {
-      return `LKR ${amount.toFixed(2)}`;
-    };
-
     const csv = [
       ['Player Name', 'Date', 'Amount (LKR)', 'Category', 'Description', 'Payment Method', 'Status'],
       [

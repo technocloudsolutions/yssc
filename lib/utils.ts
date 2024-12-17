@@ -6,10 +6,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const formatLKR = (amount: number) => {
-  return new Intl.NumberFormat('si-LK', {
-    style: 'currency',
-    currency: 'LKR',
+  return `LKR ${amount.toLocaleString('en-US', {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount)
-} 
+    maximumFractionDigits: 2
+  })}`;
+};
+ 

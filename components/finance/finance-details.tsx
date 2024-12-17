@@ -49,7 +49,7 @@ export function FinanceDetails({ isOpen, onClose, record }: FinanceDetailsProps)
             <p className={`text-lg font-semibold ${
               record?.type === 'Income' ? 'text-green-600' : 'text-red-600'
             }`}>
-              {formatLKR(record?.amount)}
+              {record?.amount ? formatLKR(Number(record.amount)) : 'LKR 0.00'}
             </p>
           </div>
           

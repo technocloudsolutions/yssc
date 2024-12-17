@@ -423,12 +423,6 @@ export default function DashboardPage() {
                 LKR {(stats.finances.expenses / 1000).toFixed(0)}K
               </span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Net Profit</span>
-              <span className={`text-lg font-semibold ${stats.finances.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                LKR {(stats.finances.netProfit / 1000).toFixed(0)}K
-              </span>
-            </div>
             <div className="h-[150px] mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsBarChart
@@ -442,11 +436,6 @@ export default function DashboardPage() {
                       name: 'Expenses',
                       value: stats.finances.expenses,
                       fill: '#EF4444' // red-600
-                    },
-                    {
-                      name: 'Net',
-                      value: stats.finances.netProfit,
-                      fill: stats.finances.netProfit >= 0 ? '#10B981' : '#EF4444'
                     }
                   ]}
                   margin={{ top: 0, right: 0, left: 0, bottom: 0 }}

@@ -93,12 +93,17 @@ export function PlayerIncomeReport() {
   });
 
   const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('si-LK', {
+    return `LKR ${amount.toLocaleString('en-US', {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-      style: 'currency',
-      currency: 'LKR'
-    }).format(amount);
+      maximumFractionDigits: 2
+    })}`;
+  };
+
+  const formatAmountForCSV = (amount: number) => {
+    return `LKR ${amount.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
   };
 
   const handleExport = () => {
@@ -108,10 +113,6 @@ export function PlayerIncomeReport() {
       return sum + Number(income.amount || 0);
     }, 0);
 
-    const formatAmountForCSV = (amount: number) => {
-      return `LKR ${amount.toFixed(2)}`;
-    };
-    
     const filters: string[] = [];
     if (selectedCategory) filters.push(selectedCategory);
     if (searchQuery) filters.push('search');
@@ -350,10 +351,6 @@ export function PlayerIncomeReport() {
   const handleSingleExport = (income: PlayerIncome) => {
     const amount = parseFloat(income.amount.toString());
     
-    const formatAmountForCSV = (amount: number) => {
-      return `LKR ${amount.toFixed(2)}`;
-    };
-
     const csv = [
       ['Player Name', 'Date', 'Amount (LKR)', 'Category', 'Description', 'Payment Method', 'Status'],
       [

@@ -76,12 +76,17 @@ export function CategoryExpensesReport() {
   });
 
   const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('si-LK', {
+    return `LKR ${amount.toLocaleString('en-US', {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-      style: 'currency',
-      currency: 'LKR'
-    }).format(amount);
+      maximumFractionDigits: 2
+    })}`;
+  };
+
+  const formatAmountForCSV = (amount: number) => {
+    return `LKR ${amount.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
   };
 
   // Group expenses by category and calculate totals
@@ -257,10 +262,6 @@ export function CategoryExpensesReport() {
   const handleExport = (categoryData: any) => {
     const { category, expenses, totalAmount } = categoryData;
     
-    const formatAmountForCSV = (amount: number) => {
-      return `LKR ${amount.toFixed(2)}`;
-    };
-
     const csv = [
       ['Category Expense Report'],
       [`Category: ${category}`],

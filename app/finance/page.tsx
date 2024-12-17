@@ -8,7 +8,11 @@ import { Input } from '@/components/ui/input';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, runTransaction, increment, getDoc } from 'firebase/firestore';
 import { Card } from '@/components/ui/card';
-import { DollarSign, TrendingUp, TrendingDown, PiggyBank, FileText, Image as ImageIcon, File, X, Info, ClipboardList, User, Paperclip, Upload, FileType, Link2, Trash2, Eye } from 'lucide-react';
+import { 
+  DollarSign, TrendingUp, TrendingDown, PiggyBank, FileText, 
+  Image as ImageIcon, File, X, Info, ClipboardList, User, 
+  Paperclip, Upload, FileType, Link2, Trash2, Eye, Wallet, Receipt 
+} from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
@@ -927,65 +931,16 @@ export default function FinancePage() {
         <h1 className="text-2xl font-bold">Finance Management</h1>
       </div>
 
-      <Modal
-        isOpen={showReceiptForm}
-        onClose={() => {
-          setShowReceiptForm(false);
-          setSelectedTransaction(null);
-        }}
-        title="Issue Receipt"
-      >
-        <ReceiptForm 
-          onSubmit={async (data) => {
-            try {
-              // Save receipt to Firestore with received from details
-              await addDoc(collection(db, 'receipts'), {
-                ...data,
-                createdAt: new Date().toISOString(),
-                transactionId: selectedTransaction?.id,
-                receivedFrom: selectedTransaction?.receivedFrom,
-                receivedFromType: selectedTransaction?.receivedFromType
-              });
-
-              // Update transaction to mark receipt as issued
-              if (selectedTransaction) {
-                await updateDoc(doc(db, 'transactions', selectedTransaction.id), {
-                  receiptIssued: true,
-                  receiptNo: data.receiptNo
-                });
-              }
-
-              toast({
-                title: "Success",
-                description: "Receipt issued successfully",
-              });
-
-              setShowReceiptForm(false);
-              setSelectedTransaction(null);
-              fetchTransactions(); // Refresh the transactions list
-            } catch (error) {
-              console.error('Error saving receipt:', error);
-              toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Failed to issue receipt",
-              });
-            }
-          }}
-          transactionData={selectedTransaction}
-        />
-      </Modal>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="p-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-green-100 dark:bg-green-900 rounded-full">
-              <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <Wallet className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Income</p>
               <h3 className="text-2xl font-bold text-green-600">
-                {formatAmount(stats.totalIncome)}
+                {formatLKR(stats.totalIncome)}
               </h3>
             </div>
           </div>
@@ -994,39 +949,13 @@ export default function FinancePage() {
         <Card className="p-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-red-100 dark:bg-red-900 rounded-full">
-              <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />
+              <Receipt className="h-6 w-6 text-red-600 dark:text-red-400" />
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Expenses</p>
               <h3 className="text-2xl font-bold text-red-600">
-                {formatAmount(stats.totalExpenses)}
+                {formatLKR(stats.totalExpenses)}
               </h3>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-              <PiggyBank className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Balance</p>
-              <h3 className="text-2xl font-bold text-blue-600">
-                {formatAmount(stats.balance)}
-              </h3>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-yellow-100 dark:bg-yellow-900 rounded-full">
-              <TrendingUp className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
-              <h3 className="text-2xl font-bold text-yellow-600">{stats.pendingTransactions}</h3>
             </div>
           </div>
         </Card>

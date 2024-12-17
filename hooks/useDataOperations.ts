@@ -78,8 +78,11 @@ export function useDataOperations(collectionName: Collection) {
   };
 
   const formatAmount = (amount: number) => {
-    return `LKR ${amount.toFixed(2)}`;
-  }
+    return `LKR ${amount.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
+  };
 
   return {
     items,
