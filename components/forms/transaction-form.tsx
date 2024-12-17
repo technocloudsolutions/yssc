@@ -29,7 +29,19 @@ export interface TransactionFormData {
   type: 'credit' | 'debit' | 'transfer';
   description: string;
   transferToAccount?: string;
+  receivedFrom?: string;
+  receivedFromType?: string;
 }
+
+const RECEIVED_FROM_TYPES = [
+  'Player',
+  'Staff',
+  'Sponsor',
+  'Member',
+  'Event',
+  'Donation',
+  'Other'
+] as const;
 
 export function TransactionForm({ 
   onSubmit, 
@@ -42,12 +54,18 @@ export function TransactionForm({
     amount: 0,
     type: initialType,
     description: '',
+    receivedFrom: '',
+    receivedFromType: ''
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.type === 'transfer' && !formData.transferToAccount) {
       alert('Please select an account to transfer to');
+      return;
+    }
+    if (formData.type === 'credit' && (!formData.receivedFrom || !formData.receivedFromType)) {
+      alert('Please fill in who the payment was received from');
       return;
     }
     onSubmit(formData);
@@ -81,6 +99,37 @@ export function TransactionForm({
           onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) })}
         />
       </div>
+
+      {formData.type === 'credit' && (
+        <>
+          <div>
+            <Label htmlFor="receivedFromType">Received From (Type)</Label>
+            <select
+              id="receivedFromType"
+              className="w-full p-2 border rounded"
+              value={formData.receivedFromType}
+              onChange={(e) => setFormData({ ...formData, receivedFromType: e.target.value })}
+              required
+            >
+              <option value="">Select Type</option>
+              {RECEIVED_FROM_TYPES.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <Label htmlFor="receivedFrom">Received From (Name)</Label>
+            <Input
+              id="receivedFrom"
+              required
+              value={formData.receivedFrom}
+              onChange={(e) => setFormData({ ...formData, receivedFrom: e.target.value })}
+              placeholder="Enter name"
+            />
+          </div>
+        </>
+      )}
 
       {formData.type === 'transfer' && (
         <div>

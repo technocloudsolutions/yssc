@@ -34,6 +34,12 @@ interface Transaction {
   updatedAt?: string;
   receiptIssued: boolean;
   receiptNo: string;
+  paymentMethod?: string;
+  bankAccount?: string;
+  payee?: string;
+  payeeType?: string;
+  receivedFrom?: string;
+  receivedFromType?: string;
 }
 
 interface AccountType {
@@ -106,6 +112,17 @@ const INCOME_PAYMENT_METHODS = [
   'Mobile Payment'
 ] as const;
 
+// Add this constant for received from types
+const RECEIVED_FROM_TYPES = [
+  'Player',
+  'Staff',
+  'Sponsor',
+  'Member',
+  'Event',
+  'Donation',
+  'Other'
+] as const;
+
 // Add this interface for form data type
 interface TransactionFormData {
   date: string;
@@ -120,6 +137,8 @@ interface TransactionFormData {
   payeeType: string;
   attachments: string[];
   bankAccount?: string;
+  receivedFrom?: string;
+  receivedFromType?: string;
 }
 
 // Add this helper function for file icons
@@ -163,6 +182,11 @@ const validateForm = (data: TransactionFormData): { isValid: boolean; errors: st
   };
 };
 
+interface NameSuggestion {
+  id: string;
+  name: string;
+}
+
 export default function FinancePage() {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -189,7 +213,9 @@ export default function FinancePage() {
     payee: '',
     payeeType: '',
     attachments: [],
-    bankAccount: ''
+    bankAccount: '',
+    receivedFrom: '',
+    receivedFromType: ''
   });
 
   const [uploading, setUploading] = useState(false);
@@ -207,6 +233,9 @@ export default function FinancePage() {
 
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+
+  const [receivedFromSuggestions, setReceivedFromSuggestions] = useState<NameSuggestion[]>([]);
+  const [showReceivedFromSuggestions, setShowReceivedFromSuggestions] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -331,6 +360,40 @@ export default function FinancePage() {
     }
   };
 
+  // Add this new function to fetch received from suggestions
+  const fetchReceivedFromSuggestions = async (type: string) => {
+    try {
+      let collectionName = '';
+      switch (type) {
+        case 'Player':
+          collectionName = 'players';
+          break;
+        case 'Staff':
+          collectionName = 'staff';
+          break;
+        case 'Sponsor':
+          collectionName = 'sponsors';
+          break;
+        default:
+          return;
+      }
+
+      if (collectionName) {
+        console.log('Fetching from collection:', collectionName);
+        const querySnapshot = await getDocs(collection(db, collectionName));
+        const names = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name
+        }));
+        console.log('Fetched names:', names);
+        setReceivedFromSuggestions(names);
+      }
+    } catch (error) {
+      console.error('Error fetching received from suggestions:', error);
+      setReceivedFromSuggestions([]);
+    }
+  };
+
   // Update the handleSubmit function
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -353,7 +416,12 @@ export default function FinancePage() {
         amount: Number(formData.amount),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        userId: user.uid
+        userId: user.uid,
+        // Ensure receivedFrom fields are included for Income transactions
+        ...(formData.transactionType === 'Income' && {
+          receivedFrom: formData.receivedFrom,
+          receivedFromType: formData.receivedFromType
+        })
       };
 
       if (editingTransaction) {
@@ -405,8 +473,27 @@ export default function FinancePage() {
               throw new Error('Insufficient funds in bank account');
             }
 
+            // Create bank transaction record with more details
+            const bankTransaction = {
+              id: Date.now().toString(),
+              amount: Number(formData.amount),
+              type: formData.transactionType === 'Income' ? 'credit' : 'debit',
+              description: formData.description,
+              date: new Date().toISOString(),
+              receivedFrom: formData.receivedFrom,
+              receivedFromType: formData.receivedFromType,
+              category: formData.category,
+              status: formData.status,
+              paymentMethod: formData.paymentMethod,
+              transactionId: editingTransaction ? editingTransaction.id : null
+            };
+
+            // Get existing transactions or initialize empty array
+            const existingTransactions = bankAccountDoc.data().transactions || [];
+
             transaction.update(bankAccountRef, {
               balance: newBalance,
+              transactions: [...existingTransactions, bankTransaction],
               lastUpdated: new Date().toISOString()
             });
           });
@@ -438,8 +525,27 @@ export default function FinancePage() {
                   throw new Error('Insufficient funds in bank account');
                 }
 
+                // Create bank transaction record with more details
+                const bankTransaction = {
+                  id: Date.now().toString(),
+                  amount: Number(formData.amount),
+                  type: formData.transactionType === 'Income' ? 'credit' : 'debit',
+                  description: formData.description,
+                  date: new Date().toISOString(),
+                  receivedFrom: formData.receivedFrom,
+                  receivedFromType: formData.receivedFromType,
+                  category: formData.category,
+                  status: formData.status,
+                  paymentMethod: formData.paymentMethod,
+                  transactionId: null
+                };
+
+                // Get existing transactions or initialize empty array
+                const existingTransactions = bankAccountDoc.data().transactions || [];
+
                 transaction.update(bankAccountRef, {
                   balance: newBalance,
+                  transactions: [...existingTransactions, bankTransaction],
                   lastUpdated: new Date().toISOString()
                 });
               });
@@ -593,7 +699,9 @@ export default function FinancePage() {
       payee: '',
       payeeType: '',
       attachments: [],
-      bankAccount: ''
+      bankAccount: '',
+      receivedFrom: '',
+      receivedFromType: ''
     });
     setSelectedAttachments([]);
     setCurrentAttachments([]);
@@ -605,15 +713,17 @@ export default function FinancePage() {
       date: transaction.date,
       transactionType: transaction.type,
       accountType: transaction.accountType,
-      paymentMethod: 'Cash',
+      paymentMethod: transaction.paymentMethod || 'Cash',
       amount: transaction.amount,
       description: transaction.description,
       status: transaction.status,
       category: transaction.category,
-      payee: '',
-      payeeType: '',
+      payee: transaction.payee || '',
+      payeeType: transaction.payeeType || '',
       attachments: transaction.attachments || [],
-      bankAccount: ''
+      bankAccount: transaction.bankAccount || '',
+      receivedFrom: transaction.receivedFrom || '',
+      receivedFromType: transaction.receivedFromType || ''
     });
     setIsModalOpen(true);
   };
@@ -681,6 +791,20 @@ export default function FinancePage() {
       )
     },
     { key: 'description', label: 'Description', sortable: true },
+    { 
+      key: 'receivedFrom', 
+      label: 'Received From', 
+      sortable: true,
+      render: (transaction: Transaction) => {
+        if (transaction.type !== 'Income') return '-';
+        return transaction.receivedFrom ? (
+          <div className="text-sm">
+            <div>{transaction.receivedFrom}</div>
+            <div className="text-muted-foreground">{transaction.receivedFromType}</div>
+          </div>
+        ) : '-';
+      }
+    },
     { key: 'status', label: 'Status', sortable: true },
     {
       key: 'attachments',
@@ -746,13 +870,6 @@ export default function FinancePage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => handleEdit(transaction)}
-          >
-            Edit
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
             className="text-red-500 hover:text-red-700"
             onClick={() => handleDelete(transaction.id)}
           >
@@ -792,9 +909,17 @@ export default function FinancePage() {
   };
 
   const handleView = (record: any) => {
+    console.log('Viewing record:', record);
     setSelectedRecord(record);
     setIsViewDialogOpen(true);
   };
+
+  // Add this effect to load suggestions when editing a transaction
+  useEffect(() => {
+    if (editingTransaction && formData.receivedFromType) {
+      fetchReceivedFromSuggestions(formData.receivedFromType);
+    }
+  }, [editingTransaction, formData.receivedFromType]);
 
   return (
     <div className="space-y-6">
@@ -813,11 +938,13 @@ export default function FinancePage() {
         <ReceiptForm 
           onSubmit={async (data) => {
             try {
-              // Save receipt to Firestore
+              // Save receipt to Firestore with received from details
               await addDoc(collection(db, 'receipts'), {
                 ...data,
                 createdAt: new Date().toISOString(),
-                transactionId: selectedTransaction?.id
+                transactionId: selectedTransaction?.id,
+                receivedFrom: selectedTransaction?.receivedFrom,
+                receivedFromType: selectedTransaction?.receivedFromType
               });
 
               // Update transaction to mark receipt as issued
@@ -835,6 +962,7 @@ export default function FinancePage() {
 
               setShowReceiptForm(false);
               setSelectedTransaction(null);
+              fetchTransactions(); // Refresh the transactions list
             } catch (error) {
               console.error('Error saving receipt:', error);
               toast({
@@ -1024,6 +1152,74 @@ export default function FinancePage() {
                     }
                   </select>
                 </div>
+
+                {formData.transactionType === 'Income' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Received From (Type)</label>
+                      <select
+                        className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
+                        value={formData.receivedFromType || ''}
+                        onChange={(e) => {
+                          const selectedType = e.target.value;
+                          setFormData({ ...formData, receivedFromType: selectedType, receivedFrom: '' });
+                          if (selectedType) {
+                            fetchReceivedFromSuggestions(selectedType);
+                          }
+                        }}
+                        required={formData.transactionType === 'Income'}
+                      >
+                        <option value="">Select Type</option>
+                        {RECEIVED_FROM_TYPES.map((type) => (
+                          <option key={`received-type-${type}`} value={type}>{type}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="relative">
+                      <label className="block text-sm font-medium mb-2">Received From (Name)</label>
+                      <Input
+                        placeholder="Enter name"
+                        value={formData.receivedFrom || ''}
+                        onChange={(e) => {
+                          setFormData({ ...formData, receivedFrom: e.target.value });
+                          setShowReceivedFromSuggestions(true);
+                        }}
+                        onFocus={() => {
+                          if (formData.receivedFromType) {
+                            setShowReceivedFromSuggestions(true);
+                          }
+                        }}
+                        onBlur={() => {
+                          // Delay hiding suggestions to allow for click events
+                          setTimeout(() => setShowReceivedFromSuggestions(false), 200);
+                        }}
+                        required={formData.transactionType === 'Income'}
+                        className="focus:ring-2 focus:ring-primary"
+                      />
+                      {showReceivedFromSuggestions && receivedFromSuggestions.length > 0 && (
+                        <div className="absolute z-10 w-full bg-background border rounded-md mt-1 max-h-40 overflow-y-auto">
+                          {receivedFromSuggestions
+                            .filter(item => 
+                              item.name.toLowerCase().includes((formData.receivedFrom || '').toLowerCase())
+                            )
+                            .map((item) => (
+                              <div
+                                key={`received-suggestion-${item.id}`}
+                                className="p-2 hover:bg-muted cursor-pointer"
+                                onClick={() => {
+                                  setFormData({ ...formData, receivedFrom: item.name });
+                                  setShowReceivedFromSuggestions(false);
+                                }}
+                              >
+                                {item.name}
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium mb-2">Payment Method</label>
@@ -1289,7 +1485,11 @@ export default function FinancePage() {
       <FinanceDetails
         isOpen={isViewDialogOpen}
         onClose={() => setIsViewDialogOpen(false)}
-        record={selectedRecord}
+        record={{
+          ...selectedRecord,
+          receivedFrom: selectedRecord?.receivedFrom,
+          receivedFromType: selectedRecord?.receivedFromType
+        }}
       />
     </div>
   );

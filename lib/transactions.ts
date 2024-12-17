@@ -9,6 +9,8 @@ export interface Transaction {
   date: string;
   transferToAccount?: string;
   transferFromAccount?: string;
+  receivedFrom?: string;
+  receivedFromType?: string;
 }
 
 export interface TransactionFormData {
@@ -16,6 +18,8 @@ export interface TransactionFormData {
   type: 'credit' | 'debit' | 'transfer';
   description: string;
   transferToAccount?: string;
+  receivedFrom?: string;
+  receivedFromType?: string;
 }
 
 export async function handleTransaction(
@@ -46,9 +50,18 @@ export async function handleTransaction(
         const fromAccountData = fromAccountDoc.data();
         const toAccountData = toAccountDoc.data();
 
-        // Verify sufficient balance
-        if ((fromAccountData.balance || 0) < data.amount) {
-          throw new Error('Insufficient balance for transfer');
+        // Ensure balance is properly initialized and handle potential negative values
+        const availableBalance = Math.max(fromAccountData.balance || 0, 0);  // Prevent negative balance
+        const transferAmount = Math.abs(data.amount);  // Ensure positive transfer amount
+
+        // Verify sufficient balance with detailed error message
+        if (availableBalance < transferAmount) {
+          throw new Error(`Insufficient balance for transfer. Available balance: ${availableBalance.toFixed(2)}, Transfer amount: ${transferAmount}`);
+        }
+
+        // Verify accounts are active
+        if (fromAccountData.status !== 'Active' || toAccountData.status !== 'Active') {
+          throw new Error('Both accounts must be active to perform a transfer');
         }
 
         // Create transaction records
@@ -57,7 +70,7 @@ export async function handleTransaction(
 
         const fromTransaction = {
           id: `${transferId}-from`,
-          amount: data.amount,
+          amount: transferAmount,
           type: 'debit',
           description: `Transfer to ${toAccountData.name}: ${data.description}`,
           date: timestamp,
@@ -66,21 +79,21 @@ export async function handleTransaction(
 
         const toTransaction = {
           id: `${transferId}-to`,
-          amount: data.amount,
+          amount: transferAmount,
           type: 'credit',
           description: `Transfer from ${fromAccountData.name}: ${data.description}`,
           date: timestamp,
           transferFromAccount: selectedAccountId
         };
 
-        // Update both accounts
+        // Update both accounts with validated balances
         transaction.update(fromAccountRef, {
-          balance: (fromAccountData.balance || 0) - data.amount,
+          balance: availableBalance - transferAmount,
           transactions: [...(fromAccountData.transactions || []), fromTransaction]
         });
 
         transaction.update(toAccountRef, {
-          balance: (toAccountData.balance || 0) + data.amount,
+          balance: (toAccountData.balance || 0) + transferAmount,
           transactions: [...(toAccountData.transactions || []), toTransaction]
         });
       });
@@ -109,7 +122,9 @@ export async function handleTransaction(
         amount: data.amount,
         type: data.type,
         description: data.description,
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        receivedFrom: data.receivedFrom,
+        receivedFromType: data.receivedFromType
       };
 
       await updateDoc(accountRef, {

@@ -15,6 +15,7 @@ import {
   ClipboardList,
   Wallet,
   Building2,
+  ArrowUpCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
@@ -29,6 +30,7 @@ const Sidebar = () => {
     { title: 'Bank Accounts', icon: Building2, href: '/bank-accounts' },
     { title: 'Reports', icon: FileText, href: '/reports' },
     { title: 'Player Expenses', icon: ClipboardList, href: '/reports/player-expenses' },
+    { title: 'Player Income', icon: ArrowUpCircle, href: '/reports/player-income' },
     { title: 'Category Expenses', icon: BarChart3, href: '/reports/category-expenses' },
     { title: 'Performance', icon: TrendingUp, href: '/performance' },
     { title: 'Settings', icon: Settings, href: '/settings' },

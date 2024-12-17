@@ -58,6 +58,19 @@ export function FinanceDetails({ isOpen, onClose, record }: FinanceDetailsProps)
             <p className="whitespace-pre-wrap">{record?.description}</p>
           </div>
           
+          {record?.type === 'Income' && record?.receivedFrom && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="font-medium text-sm text-muted-foreground">Received From</label>
+                <p>{record?.receivedFrom}</p>
+              </div>
+              <div>
+                <label className="font-medium text-sm text-muted-foreground">Received From Type</label>
+                <p>{record?.receivedFromType}</p>
+              </div>
+            </div>
+          )}
+          
           <div>
             <label className="font-medium text-sm text-muted-foreground">Status</label>
             <p className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

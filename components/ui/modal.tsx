@@ -8,9 +8,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  className?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, className }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
       <div
         ref={modalRef}
-        className="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md mx-4"
+        className={`bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md mx-4 ${className || ''}`}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
           <h3 className="text-lg font-semibold">{title}</h3>

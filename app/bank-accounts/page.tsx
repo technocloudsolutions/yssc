@@ -455,9 +455,10 @@ export default function BankAccountsPage() {
           setCurrentPage(1);
         }}
         title={selectedAccount ? `${selectedAccount.name} - Transaction History` : 'Transaction History'}
+        className="max-w-6xl w-full h-[90vh]"
       >
         {selectedAccount && (
-          <div className="space-y-6">
+          <div className="space-y-6 h-full flex flex-col">
             <div className="flex justify-end space-x-2 mb-4">
               <Button
                 size="sm"
@@ -480,8 +481,8 @@ export default function BankAccountsPage() {
               )}
             </div>
 
-            <div id="transaction-details-print">
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+            <div id="transaction-details-print" className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg sticky top-0 z-10 bg-opacity-95">
                 <div>
                   <p className="text-sm text-muted-foreground">Current Balance</p>
                   <p className="text-lg font-semibold">{formatLKR(selectedAccount.balance || 0)}</p>
@@ -501,11 +502,11 @@ export default function BankAccountsPage() {
                     <div className="space-y-2">
                       {selectedAccount.transactions
                         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                        .slice((currentPage - 1) * transactionsPerPage, currentPage * transactionsPerPage)
+                        .slice((currentPage - 1) * 5, currentPage * 5)
                         .map((transaction) => (
                           <div
                             key={transaction.id}
-                            className="p-3 border rounded-lg flex justify-between items-center"
+                            className="p-4 border rounded-lg flex justify-between items-center hover:bg-accent"
                           >
                             <div>
                               <p className="font-medium">
@@ -540,10 +541,10 @@ export default function BankAccountsPage() {
                     </div>
 
                     {/* Pagination */}
-                    <div className="flex items-center justify-between mt-4">
+                    <div className="flex items-center justify-between mt-4 sticky bottom-0 bg-background p-4 border-t">
                       <p className="text-sm text-muted-foreground">
-                        Showing {Math.min((currentPage - 1) * transactionsPerPage + 1, selectedAccount.transactions.length)} to{' '}
-                        {Math.min(currentPage * transactionsPerPage, selectedAccount.transactions.length)} of{' '}
+                        Showing {Math.min((currentPage - 1) * 5 + 1, selectedAccount.transactions.length)} to{' '}
+                        {Math.min(currentPage * 5, selectedAccount.transactions.length)} of{' '}
                         {selectedAccount.transactions.length} transactions
                       </p>
                       <div className="flex items-center space-x-2">
@@ -553,15 +554,15 @@ export default function BankAccountsPage() {
                           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                           disabled={currentPage === 1}
                         >
-                          <ChevronLeft className="h-4 w-4" />
+                          Previous
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setCurrentPage(p => Math.min(Math.ceil(selectedAccount.transactions!.length / transactionsPerPage), p + 1))}
-                          disabled={currentPage === Math.ceil(selectedAccount.transactions.length / transactionsPerPage)}
+                          onClick={() => setCurrentPage(p => Math.min(Math.ceil(selectedAccount.transactions!.length / 5), p + 1))}
+                          disabled={currentPage === Math.ceil(selectedAccount.transactions.length / 5)}
                         >
-                          <ChevronRight className="h-4 w-4" />
+                          Next
                         </Button>
                       </div>
                     </div>

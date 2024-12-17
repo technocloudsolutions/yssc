@@ -11,7 +11,8 @@ import {
   Award,
   Activity,
   Target,
-  Clock
+  Clock,
+  Building2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
@@ -27,7 +28,9 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  BarChart as RechartsBarChart,
+  Bar as RechartsBar
 } from 'recharts';
 import { format } from 'date-fns';
 import Image from 'next/image';
@@ -43,6 +46,11 @@ interface DashboardStats {
     expenses: number;
     netProfit: number;
     growth: number;
+    totalBalance: number;
+    activeAccounts: number;
+    lastTransactionDate: string;
+    playerIncome: number;
+    averagePlayerIncome: number;
   };
   performance: {
     totalGames: number;
@@ -69,11 +77,30 @@ const getSriLankaTime = () => {
   return new Date().toLocaleTimeString('en-US', options);
 };
 
+interface BankAccount {
+  id: string;
+  balance?: number;
+  status?: string;
+  name: string;
+  transactions?: Array<{
+    id: string;
+    amount: number;
+    type: string;
+    description: string;
+    date: string;
+    receivedFrom?: string;
+    receivedFromType?: string;
+    category?: string;
+    status?: string;
+    paymentMethod?: string;
+  }>;
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     players: { total: 0, active: 0, byPosition: {} },
-    finances: { revenue: 0, expenses: 0, netProfit: 0, growth: 0 },
+    finances: { revenue: 0, expenses: 0, netProfit: 0, growth: 0, totalBalance: 0, activeAccounts: 0, lastTransactionDate: '', playerIncome: 0, averagePlayerIncome: 0 },
     performance: { totalGames: 0, wins: 0, draws: 0, losses: 0 },
     staff: { total: 0, byDepartment: {} }
   });
@@ -119,6 +146,29 @@ export default function DashboardPage() {
         }, {} as Record<string, number>)
       };
 
+      // Fetch bank accounts
+      const accountTypesRef = collection(db, 'accountTypes');
+      const accountTypesSnap = await getDocs(accountTypesRef);
+      const bankAccounts = accountTypesSnap.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        balance: doc.data().balance,
+        status: doc.data().status,
+        transactions: doc.data().transactions
+      })) as BankAccount[];
+
+      const totalBalance = bankAccounts.reduce((sum, account) => sum + (account.balance || 0), 0);
+      const activeAccounts = bankAccounts.filter(account => account.status === 'Active').length;
+
+      // Get latest transaction date
+      const latestTransaction = bankAccounts
+        .flatMap(account => account.transactions || [])
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
+      const lastTransactionDate = latestTransaction?.date 
+        ? new Date(latestTransaction.date).toISOString()
+        : new Date().toISOString();
+
       // Fetch financial stats
       const transactionsRef = collection(db, 'transactions');
       const transactionsSnap = await getDocs(transactionsRef);
@@ -134,6 +184,10 @@ export default function DashboardPage() {
 
       const netProfit = revenue - expenses;
       const growth = revenue > 0 ? ((netProfit / revenue) * 100) : 0;
+
+      // Calculate player income (40% of revenue)
+      const playerIncome = revenue * 0.4;
+      const averagePlayerIncome = playerStats.total > 0 ? playerIncome / playerStats.total : 0;
 
       // Fetch performance stats
       const performancesRef = collection(db, 'performances');
@@ -183,7 +237,12 @@ export default function DashboardPage() {
           revenue,
           expenses,
           netProfit,
-          growth
+          growth,
+          totalBalance,
+          activeAccounts,
+          lastTransactionDate,
+          playerIncome,
+          averagePlayerIncome
         },
         performance: performanceStats,
         staff: staffStats
@@ -305,32 +364,138 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Bank Accounts Summary */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Squad Distribution</h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={Object.entries(stats.players.byPosition).map(([position, count]) => ({
-                    name: position,
-                    value: count
-                  }))}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Bank Accounts</h3>
+            <Building2 className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Total Balance</span>
+              <span className="text-lg font-semibold text-green-600">
+                LKR {(stats.finances.totalBalance / 1000000).toFixed(1)}M
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Active Accounts</span>
+              <span className="text-lg font-semibold text-blue-600">
+                {stats.finances.activeAccounts}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Last Transaction</span>
+              <span className="text-sm text-muted-foreground">
+                {(() => {
+                  try {
+                    const date = new Date(stats.finances.lastTransactionDate);
+                    return date.toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    });
+                  } catch (error) {
+                    return 'No recent transactions';
+                  }
+                })()}
+              </span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Finance Management Summary */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Finance Management</h3>
+            <DollarSign className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Total Income</span>
+              <span className="text-lg font-semibold text-green-600">
+                LKR {(stats.finances.revenue / 1000).toFixed(0)}K
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Total Expenses</span>
+              <span className="text-lg font-semibold text-red-600">
+                LKR {(stats.finances.expenses / 1000).toFixed(0)}K
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Net Profit</span>
+              <span className={`text-lg font-semibold ${stats.finances.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                LKR {(stats.finances.netProfit / 1000).toFixed(0)}K
+              </span>
+            </div>
+            <div className="h-[150px] mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsBarChart
+                  data={[
+                    {
+                      name: 'Income',
+                      value: stats.finances.revenue,
+                      fill: '#10B981' // green-600
+                    },
+                    {
+                      name: 'Expenses',
+                      value: stats.finances.expenses,
+                      fill: '#EF4444' // red-600
+                    },
+                    {
+                      name: 'Net',
+                      value: stats.finances.netProfit,
+                      fill: stats.finances.netProfit >= 0 ? '#10B981' : '#EF4444'
+                    }
+                  ]}
+                  margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
                 >
-                  {Object.entries(stats.players.byPosition).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 12, fill: '#6B7280' }}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => `LKR ${(value / 1000).toFixed(0)}K`}
+                    contentStyle={{
+                      backgroundColor: '#1F2937',
+                      border: 'none',
+                      borderRadius: '0.375rem',
+                      padding: '0.5rem'
+                    }}
+                    labelStyle={{ color: '#D1D5DB' }}
+                  />
+                  <RechartsBar dataKey="value" radius={[4, 4, 0, 0]} />
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </Card>
+
+        {/* Player Income Overview */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Player Income</h3>
+            <Users className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Total Players</span>
+              <span className="text-lg font-semibold">{stats.players.total}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Active Income</span>
+              <span className="text-lg font-semibold text-green-600">
+                LKR {(stats.finances.playerIncome / 1000).toFixed(0)}K
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Average/Player</span>
+              <span className="text-lg font-semibold text-blue-600">
+                LKR {(stats.finances.averagePlayerIncome / 1000).toFixed(0)}K
+              </span>
+            </div>
           </div>
         </Card>
       </div>

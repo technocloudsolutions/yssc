@@ -26,11 +26,7 @@ export default function LoginPage() {
       setIsLoading(true);
       setError(null);
       const userData = await login(data.email, data.password);
-      if (userData?.role?.toLowerCase() === 'admin') {
-        router.push('/dashboard');
-      } else {
-        router.push('/');
-      }
+      router.push('/');
     } catch (err) {
       console.error('Login error:', err);
       setError('Invalid email or password');

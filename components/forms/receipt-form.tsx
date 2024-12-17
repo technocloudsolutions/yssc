@@ -65,7 +65,9 @@ export function ReceiptForm({ onSubmit, transactionData, initialData }: ReceiptF
         amount: transactionData.amount?.toString() || '',
         paymentMethod: transactionData.paymentMethod || 'Cash',
         purpose: transactionData.description || '',
-        transactionId: transactionData.id || ''
+        transactionId: transactionData.id || '',
+        receivedFrom: transactionData.receivedFrom || '',
+        remarks: `${transactionData.receivedFromType || ''} ${transactionData.category || ''}`.trim()
       };
 
       Object.entries(data).forEach(([key, value]) => {
@@ -196,26 +198,27 @@ export function ReceiptForm({ onSubmit, transactionData, initialData }: ReceiptF
           </Button>
         </form>
       ) : (
-        <div className="print-container bg-white">
-          {/* Container with fixed width for screen view */}
-          <div className="max-w-[600px] mx-auto bg-white p-8 shadow-lg rounded-lg">
+        <div className="print-container bg-white h-screen flex items-center justify-center p-4">
+          {/* Receipt container with fixed A4 proportions */}
+          <div className="w-[500px] h-[900px] bg-white p-4 shadow-md print:w-[595px] print:h-[842px] print:p-8 mx-auto overflow-auto">
             {/* Club Header */}
-            <div className="text-center mb-6 pb-4">
-              <div className="mb-3">
-                <img src="/logo.png" alt="YSSC Logo" className="h-16 mx-auto" />
+            <div className="text-center mb-4">
+              <div className="mb-2">
+                <img src="/logo.png" alt="YSSC Logo" className="h-14 mx-auto" />
               </div>
-              <h1 className="text-xl font-bold text-[#001F3F] mb-1">Young Silver Sports Club</h1>
-              <p className="text-base font-semibold text-[#001F3F]/80 mb-1">Official Receipt</p>
-              <div className="text-sm text-gray-600">
+              <h1 className="text-xl font-bold text-[#001F3F]">Young Silver Sports Club</h1>
+              <p className="text-base font-semibold text-[#001F3F]/80">Official Receipt</p>
+              <div className="text-sm text-gray-600 mt-1">
                 <p>27, Vincent Lane, Wellawatte, Colombo 06</p>
                 <p>Tel: +94 0 714 813 981</p>
                 <p>Email: info@youngsilversportsclub.com</p>
               </div>
+              <div className="border-b border-gray-300 mt-3"></div>
             </div>
 
             {/* Receipt Details */}
-            <div className="bg-gray-50 rounded p-4 mb-4 border border-gray-200">
-              <div className="grid grid-cols-2 gap-2">
+            <div className="mb-4">
+              <div className="flex justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Receipt No:</p>
                   <p className="text-base font-bold text-[#001F3F]">{formData.receiptNo}</p>
@@ -237,15 +240,18 @@ export function ReceiptForm({ onSubmit, transactionData, initialData }: ReceiptF
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-gray-600">Received with thanks from:</p>
-                <p className="text-base font-bold text-[#001F3F]">{formData.receivedFrom}</p>
+                <p className="text-base font-bold text-[#001F3F] mt-1">{formData.receivedFrom}</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  {formData.remarks}
+                </p>
               </div>
               
-              <div className="bg-[#001F3F]/5 p-3 rounded">
+              <div className="bg-gray-50 p-3 rounded">
                 <p className="text-sm text-gray-600">Amount:</p>
-                <p className="text-lg font-bold text-[#001F3F]">
+                <p className="text-lg font-bold text-[#001F3F] mt-1">
                   LKR {Number(formData.amount).toLocaleString()}
                 </p>
-                <p className="text-sm text-gray-600 italic">
+                <p className="text-sm text-gray-600 italic mt-1">
                   {numberToWords(formData.amount)} Rupees Only
                 </p>
               </div>
@@ -253,37 +259,30 @@ export function ReceiptForm({ onSubmit, transactionData, initialData }: ReceiptF
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">Payment Method:</p>
-                  <p className="text-base text-[#001F3F]">{formData.paymentMethod}</p>
+                  <p className="text-base text-[#001F3F] mt-1">{formData.paymentMethod}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Transaction ID:</p>
-                  <p className="text-base text-[#001F3F]">{formData.transactionId || 'N/A'}</p>
+                  <p className="text-base text-[#001F3F] mt-1">{formData.transactionId || 'N/A'}</p>
                 </div>
               </div>
               
               <div>
                 <p className="text-sm text-gray-600">Purpose:</p>
-                <p className="text-base text-[#001F3F]">{formData.purpose}</p>
+                <p className="text-base text-[#001F3F] mt-1">{formData.purpose}</p>
               </div>
-
-              {formData.remarks && (
-                <div className="bg-gray-50 p-3 rounded">
-                  <p className="text-sm text-gray-600">Remarks:</p>
-                  <p className="text-sm text-gray-700">{formData.remarks}</p>
-                </div>
-              )}
             </div>
 
             {/* Footer */}
-            <div className="mt-8">
-              <p className="text-center text-sm text-gray-600 mb-8">
+            <div className="mt-auto" style={{ marginTop: '40px' }}>
+              <p className="text-center text-sm text-gray-600">
                 Thank you for your payment. Your support helps us maintain and improve our club facilities.
               </p>
               
-              <div className="flex justify-center mt-8">
+              <div className="flex justify-center mt-6">
                 <div className="text-center">
-                  <div className="border-t border-[#001F3F] w-48 pt-2">
-                    <p className="text-sm text-[#001F3F]">Authorized Signature</p>
+                  <div className="border-t border-[#001F3F] w-48">
+                    <p className="text-sm text-[#001F3F] mt-2">Authorized Signature</p>
                   </div>
                 </div>
               </div>
@@ -291,17 +290,17 @@ export function ReceiptForm({ onSubmit, transactionData, initialData }: ReceiptF
           </div>
 
           {/* Print/Edit Buttons */}
-          <div className="mt-4 flex gap-4 print:hidden max-w-[600px] mx-auto">
+          <div className="fixed bottom-2 left-0 right-0 flex justify-center gap-4 print:hidden">
             <Button 
               onClick={handlePrint} 
-              className="w-full bg-[#001F3F] hover:bg-[#003366] text-white"
+              className="bg-[#001F3F] hover:bg-[#003366] text-white px-8 py-2"
             >
               Print Receipt
             </Button>
             <Button 
               variant="outline" 
               onClick={() => setShowPreview(false)} 
-              className="w-full bg-white hover:bg-gray-100 border-2 border-[#001F3F] text-[#001F3F]"
+              className="bg-white hover:bg-gray-100 border-2 border-[#001F3F] text-[#001F3F] px-8 py-2"
             >
               Edit Receipt
             </Button>
