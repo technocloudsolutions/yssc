@@ -5,7 +5,6 @@ import {
   BarChart3, 
   Users, 
   DollarSign, 
-  FileText, 
   Settings,
   Home,
   UserCog,
@@ -15,7 +14,12 @@ import {
   ClipboardList,
   Wallet,
   Building2,
-  ArrowUpCircle,
+  FileText,
+  PieChart,
+  TrendingDown,
+  Calendar,
+  Filter,
+  UserCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
@@ -28,14 +32,49 @@ const Sidebar = () => {
     { title: 'Staff', icon: UserCog, href: '/staff' },
     { title: 'Finance', icon: DollarSign, href: '/finance' },
     { title: 'Bank Accounts', icon: Building2, href: '/bank-accounts' },
-    { title: 'Reports', icon: FileText, href: '/reports' },
-    { title: 'Player Expenses', icon: ClipboardList, href: '/reports/player-expenses' },
-    { title: 'Player Income', icon: ArrowUpCircle, href: '/reports/player-income' },
-    { title: 'Category Expenses', icon: BarChart3, href: '/reports/category-expenses' },
+    { title: 'Advanced Reports', icon: FileText, href: '/advanced-reports' },
     { title: 'Performance', icon: TrendingUp, href: '/performance' },
     { title: 'Settings', icon: Settings, href: '/settings' },
     { title: 'User Management', icon: UserPlus, href: '/settings/users' },
   ]);
+
+  const reportSubItems = [
+    {
+      title: "Player Analytics",
+      icon: UserCircle,
+      href: "/advanced-reports/players"
+    },
+    {
+      title: "Staff Reports",
+      icon: Users,
+      href: "/advanced-reports/staff"
+    },
+    {
+      title: "Financial Overview",
+      icon: PieChart,
+      href: "/advanced-reports/finance"
+    },
+    {
+      title: "Income Analysis",
+      icon: TrendingUp,
+      href: "/advanced-reports/income"
+    },
+    {
+      title: "Expense Analysis",
+      icon: TrendingDown,
+      href: "/advanced-reports/expenses"
+    },
+    {
+      title: "Category Analysis",
+      icon: BarChart3,
+      href: "/advanced-reports/categories"
+    },
+    {
+      title: "Bank Accounts",
+      icon: Building2,
+      href: "/advanced-reports/bank-accounts"
+    }
+  ];
 
   // If user is not logged in, don't render the sidebar
   if (!user) {
@@ -49,14 +88,29 @@ const Sidebar = () => {
       </div>
       <nav className="mt-8 flex-1">
         {menuItems.map((item) => (
-          <Link
-            key={item.title}
-            href={item.href}
-            className="flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-yellow-500/10 hover:text-yellow-500"
-          >
-            <item.icon className="h-5 w-5 mr-3" />
-            {item.title}
-          </Link>
+          <div key={item.title}>
+            <Link
+              href={item.href}
+              className="flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-yellow-500/10 hover:text-yellow-500"
+            >
+              <item.icon className="h-5 w-5 mr-3" />
+              {item.title}
+            </Link>
+            {item.title === 'Advanced Reports' && (
+              <div className="ml-4 border-l border-gray-200 dark:border-gray-800">
+                {reportSubItems.map((subItem) => (
+                  <Link
+                    key={subItem.title}
+                    href={subItem.href}
+                    className="flex items-center px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-yellow-500/10 hover:text-yellow-500"
+                  >
+                    <subItem.icon className="h-4 w-4 mr-3" />
+                    {subItem.title}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
       </nav>
     </div>

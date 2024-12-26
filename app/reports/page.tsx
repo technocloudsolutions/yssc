@@ -27,7 +27,6 @@ interface Report {
 const REPORT_CATEGORIES = [
   { value: 'financial', label: 'Financial Reports' },
   { value: 'performance', label: 'Performance Reports' },
-  { value: 'players', label: 'Players Reports' },
   { value: 'staff', label: 'Staff Reports' }
 ] as const;
 
@@ -365,32 +364,6 @@ const generatePerformanceReport = async () => {
   };
 };
 
-// Helper function to generate players report data
-const generatePlayersReport = async () => {
-  const playersRef = collection(db, 'players');
-  const snapshot = await getDocs(playersRef);
-  const players = snapshot.docs.map(doc => doc.data());
-
-  return {
-    summary: {
-      totalPlayers: players.length,
-      byPosition: players.reduce((acc, p) => {
-        acc[p.position] = (acc[p.position] || 0) + 1;
-        return acc;
-      }, {}),
-      activeContracts: players.filter(p => p.status === 'Active').length
-    },
-    details: {
-      players: players.map(p => ({
-        name: p.name,
-        position: p.position,
-        status: p.status,
-        contractUntil: p.contractUntil
-      }))
-    }
-  };
-};
-
 // Helper function to generate staff report data
 const generateStaffReport = async () => {
   const staffRef = collection(db, 'staff');
@@ -426,10 +399,11 @@ export default function ReportsPage() {
     summary: '',
     status: 'Generated' as const
   });
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: addDays(new Date(), -30), // Default to last 30 days
-    to: new Date()
-  });
+  const defaultDateRange = {
+    from: addDays(new Date(), -30),
+    to: new Date(),
+  };
+  const [dateRange, setDateRange] = useState<DateRange>(defaultDateRange);
 
   useEffect(() => {
     fetchReports();
@@ -460,9 +434,6 @@ export default function ReportsPage() {
         case 'performance':
           reportData = await generatePerformanceReport();
           break;
-        case 'players':
-          reportData = await generatePlayersReport();
-          break;
         case 'staff':
           reportData = await generateStaffReport();
           break;
@@ -492,7 +463,7 @@ export default function ReportsPage() {
   };
 
   const getFilteredReports = () => {
-    if (!dateRange?.from) return reports;
+    if (!dateRange.from) return reports;
     
     return reports.filter(report => {
       const reportDate = new Date(report.date);
@@ -522,12 +493,12 @@ export default function ReportsPage() {
         <div className="flex-1">
           <DatePickerWithRange
             date={dateRange}
-            onDateChange={setDateRange}
+            onDateChange={(newDate) => newDate && setDateRange(newDate)}
           />
         </div>
         <Button
           variant="outline"
-          onClick={() => setDateRange(undefined)}
+          onClick={() => setDateRange(defaultDateRange)}
           className="flex items-center gap-2"
         >
           <Filter className="h-4 w-4" />

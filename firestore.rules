@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isFinanceRole() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'finance', 'finance_manager'];
+    }
+
+    // User rules
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+    }
+    
+    // Account types collection (bank accounts)
+    match /accountTypes/{accountId} {
+      allow read: if isFinanceRole();
+      allow write: if isAdmin();
+    }
+
+    // Finance collection for transactions
+    match /finance/{document} {
+      allow read: if isFinanceRole();
+      allow write: if isFinanceRole();
+    }
+
+    // Player financials collection
+    match /player_financials/{document} {
+      allow read: if isFinanceRole();
+      allow write: if isAdmin();
+    }
+
+    // Staff financials collection
+    match /staff_financials/{document} {
+      allow read: if isFinanceRole();
+      allow write: if isAdmin();
+    }
+
+    // Reports collection
+    match /reports/{document} {
+      allow read: if isFinanceRole();
+      allow write: if isAdmin();
+    }
+
+    // Categories collection
+    match /categories/{document} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Departments collection
+    match /departments/{document} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Players collection
+    match /players/{document} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Staff collection
+    match /staff/{document} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Settings collection
+    match /settings/{document} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Dashboard collection
+    match /dashboard/{document} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Catch-all rule - deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+} 
