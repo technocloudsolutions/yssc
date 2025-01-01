@@ -23,7 +23,7 @@ import {
 const ROLES = ['admin', 'user', 'staff'] as const;
 
 export default function UsersPage() {
-  const { userData } = useAuth();
+  const { user, userData } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserData[]>([]);
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -139,7 +139,7 @@ export default function UsersPage() {
     }
   };
 
-  if (!userData || userData.role.toLowerCase() !== 'admin') {
+  if (!userData || userData.role !== 'admin') {
     return (
       <div className="p-8 text-center">
         <h1 className="text-3xl font-bold text-red-500">Access Denied</h1>

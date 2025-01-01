@@ -30,6 +30,7 @@ const Sidebar = () => {
     { title: 'Dashboard', icon: Home, href: '/' },
     { title: 'Players', icon: Users, href: '/players' },
     { title: 'Staff', icon: UserCog, href: '/staff' },
+    { title: 'Sponsors', icon: Building2, href: '/sponsors' },
     { title: 'Finance', icon: DollarSign, href: '/finance' },
     { title: 'Bank Accounts', icon: Building2, href: '/bank-accounts' },
     { title: 'Advanced Reports', icon: FileText, href: '/advanced-reports' },
@@ -48,6 +49,11 @@ const Sidebar = () => {
       title: "Staff Reports",
       icon: Users,
       href: "/advanced-reports/staff"
+    },
+    {
+      title: "Sponsors Overview",
+      icon: Building2,
+      href: "/advanced-reports/sponsors"
     },
     {
       title: "Financial Overview",

@@ -13,12 +13,12 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
-  const { login }: AuthContextType = useAuth(); // Specify the type for login
+  const { signIn } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await login(email, password);
+      await signIn(email, password);
       router.push('/');
     } catch (error) {
       setError('Invalid email or password');
