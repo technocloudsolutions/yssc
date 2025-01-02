@@ -243,20 +243,6 @@ export default function SponsorsPage() {
     setIsModalOpen(true);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const storageRef = ref(storage, `sponsor-logos/${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(snapshot.ref);
-      setFormData(prev => ({ ...prev, logo: url }));
-    } catch (error) {
-      console.error('Error uploading image:', error);
-    }
-  };
-
   const handleView = (sponsor: Sponsor) => {
     setSelectedSponsor(sponsor);
     setIsViewModalOpen(true);
@@ -266,12 +252,14 @@ export default function SponsorsPage() {
     {
       key: 'name',
       label: 'Name',
-      sortable: true
+      sortable: true,
+      render: (row: Sponsor) => row.name
     },
     {
       key: 'sponsorshipType',
       label: 'Type',
-      sortable: true
+      sortable: true,
+      render: (row: Sponsor) => row.sponsorshipType
     },
     {
       key: 'sponsorshipAmount',
@@ -282,7 +270,8 @@ export default function SponsorsPage() {
     {
       key: 'status',
       label: 'Status',
-      sortable: true
+      sortable: true,
+      render: (row: Sponsor) => row.status
     },
     {
       key: 'actions',
@@ -290,13 +279,25 @@ export default function SponsorsPage() {
       sortable: false,
       render: (row: Sponsor) => (
         <div className="flex space-x-2">
-          <Button variant="outline" size="sm" onClick={() => handleView(row)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleView(row)}
+          >
             View
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleEdit(row)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleEdit(row)}
+          >
             Edit
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleDelete(row.id)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDelete(row.id)}
+          >
             Delete
           </Button>
         </div>
@@ -306,154 +307,30 @@ export default function SponsorsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Sponsors</h1>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Sponsor
-        </Button>
+    <div className="space-y-4 p-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Sponsors</h1>
+        <div className="flex space-x-2">
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Sponsor
+          </Button>
+        </div>
       </div>
 
-      <Card>
+      <Card className="p-4">
         <DataTable
           columns={columns}
           data={sponsors}
         />
       </Card>
-
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          resetForm();
-        }}
-        title={selectedSponsor ? 'Edit Sponsor' : 'Add Sponsor'}
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Logo</label>
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Name*</label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Phone</label>
-              <Input
-                value={formData.phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Website</label>
-              <Input
-                value={formData.website}
-                onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Industry</label>
-              <Input
-                value={formData.industry}
-                onChange={(e) => setFormData(prev => ({ ...prev, industry: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Type</label>
-              <select
-                className="w-full px-3 py-2 border rounded-md"
-                value={formData.sponsorshipType}
-                onChange={(e) => setFormData(prev => ({ ...prev, sponsorshipType: e.target.value as any }))}
-              >
-                <option value="Platinum">Platinum</option>
-                <option value="Gold">Gold</option>
-                <option value="Silver">Silver</option>
-                <option value="Bronze">Bronze</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Amount</label>
-              <Input
-                type="number"
-                value={formData.sponsorshipAmount}
-                onChange={(e) => setFormData(prev => ({ ...prev, sponsorshipAmount: Number(e.target.value) }))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Start Date</label>
-              <Input
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">End Date</label>
-              <Input
-                type="date"
-                value={formData.endDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Status</label>
-              <select
-                className="w-full px-3 py-2 border rounded-md"
-                value={formData.status}
-                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as any }))}
-              >
-                <option value="Active">Active</option>
-                <option value="Pending">Pending</option>
-                <option value="Expired">Expired</option>
-                <option value="Terminated">Terminated</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-2">
-            <Button type="submit">
-              {selectedSponsor ? 'Update' : 'Add'} Sponsor
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setIsModalOpen(false);
-                resetForm();
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </Modal>
 
       {selectedSponsor && (
         <ViewSponsorModal
@@ -465,6 +342,157 @@ export default function SponsorsPage() {
           }}
         />
       )}
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          resetForm();
+        }}
+        title={selectedSponsor ? 'Edit Sponsor' : 'Add Sponsor'}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="text-sm font-medium">Name</label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Email</label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Phone</label>
+              <Input
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Website</label>
+              <Input
+                value={formData.website}
+                onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Industry</label>
+              <Input
+                value={formData.industry}
+                onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Sponsorship Type</label>
+              <select
+                className="w-full rounded-md border border-input bg-background px-3 py-2"
+                value={formData.sponsorshipType}
+                onChange={(e) => setFormData({ ...formData, sponsorshipType: e.target.value as any })}
+              >
+                <option value="Platinum">Platinum</option>
+                <option value="Gold">Gold</option>
+                <option value="Silver">Silver</option>
+                <option value="Bronze">Bronze</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Amount (LKR)</label>
+              <Input
+                type="number"
+                value={formData.sponsorshipAmount}
+                onChange={(e) => setFormData({ ...formData, sponsorshipAmount: Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Start Date</label>
+              <Input
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">End Date</label>
+              <Input
+                type="date"
+                value={formData.endDate}
+                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Status</label>
+              <select
+                className="w-full rounded-md border border-input bg-background px-3 py-2"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+              >
+                <option value="Active">Active</option>
+                <option value="Pending">Pending</option>
+                <option value="Expired">Expired</option>
+                <option value="Terminated">Terminated</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-lg font-medium">Address</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="text-sm font-medium">Street Address</label>
+                <Input
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">City</label>
+                <Input
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">State/Province</label>
+                <Input
+                  value={formData.state}
+                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Postal Code</label>
+                <Input
+                  value={formData.postalCode}
+                  onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsModalOpen(false);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit">
+              {selectedSponsor ? 'Update' : 'Create'} Sponsor
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 } 

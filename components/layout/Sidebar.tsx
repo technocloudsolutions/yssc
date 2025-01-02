@@ -36,7 +36,7 @@ const Sidebar = () => {
     { title: 'Advanced Reports', icon: FileText, href: '/advanced-reports' },
     { title: 'Performance', icon: TrendingUp, href: '/performance' },
     { title: 'Settings', icon: Settings, href: '/settings' },
-    { title: 'User Management', icon: UserPlus, href: '/settings/users' },
+    { title: 'User Management', icon: UserPlus, href: '/users' },
   ]);
 
   const reportSubItems = [

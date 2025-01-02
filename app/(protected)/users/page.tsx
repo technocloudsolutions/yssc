@@ -14,6 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 interface User {
   id: string;
@@ -26,6 +28,8 @@ interface User {
 const ROLES = ['admin', 'user', 'staff'] as const;
 
 export default function UsersPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [newUser, setNewUser] = useState({
@@ -36,8 +40,12 @@ export default function UsersPage() {
   });
 
   useEffect(() => {
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
     fetchUsers();
-  }, []);
+  }, [user, router]);
 
   const fetchUsers = async () => {
     try {
@@ -104,6 +112,10 @@ export default function UsersPage() {
       console.error("Error creating admin user:", error);
     }
   };
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">

@@ -47,7 +47,7 @@ const MetricCard = ({ label, value, change, trend }: MetricCardProps) => (
       <span className="text-sm font-medium text-muted-foreground">{label}</span>
       <div className="flex items-baseline gap-2">
         <span className="text-2xl font-bold">
-          {label.includes('Balance') || label.includes('Flow') ? formatCurrency(value) : value}
+          {formatCurrency(value)}
         </span>
         {trend !== 'neutral' && (
           <span className={`text-sm font-medium ${
@@ -62,10 +62,10 @@ const MetricCard = ({ label, value, change, trend }: MetricCardProps) => (
 );
 
 const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
+  return `LKR ${amount.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
 };
 
 const formatDate = (dateString: string) => {
