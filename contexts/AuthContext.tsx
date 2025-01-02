@@ -14,8 +14,9 @@ import { useRouter } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import Cookies from 'js-cookie';
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
+  userData: any;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -24,6 +25,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  userData: null,
   loading: true,
   signIn: async () => {},
   signOut: async () => {},
@@ -34,6 +36,7 @@ export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -45,11 +48,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUser(user);
+        // Get user data from Firestore
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const userData = userDoc.data();
+        setUserData(userData);
+
         // Store minimal user info in cookies for middleware
         Cookies.set('user', JSON.stringify({
           uid: user.uid,
           email: user.email,
-          role: 'user' // You can fetch the actual role from Firestore if needed
+          role: userData?.role || 'user'
         }));
         
         // If on login page, redirect to dashboard
@@ -58,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setUser(null);
+        setUserData(null);
         Cookies.remove('user');
         // If not on a public path, redirect to login
         if (!window.location.pathname.startsWith('/auth/')) {
@@ -78,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Get user data from Firestore
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
       const userData = userDoc.data();
+      setUserData(userData);
 
       // Store user data in cookies
       Cookies.set('user', JSON.stringify({
@@ -98,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      setUserData(null);
       Cookies.remove('user');
       router.push('/auth/login');
     } catch (error: any) {
@@ -111,6 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        userData,
         loading,
         signIn: handleSignIn,
         signOut: handleSignOut,
