@@ -11,7 +11,7 @@ import { db } from '@/lib/firebase';
 interface Category {
   id: string;
   name: string;
-  type: 'Income' | 'Expense';
+  type: string;
   status: 'Active' | 'Inactive';
 }
 
@@ -42,6 +42,7 @@ export interface TransactionFormData {
   receivedFromType?: string;
   category?: string;
   accountType?: string;
+  paymentMethod?: string;
 }
 
 const RECEIVED_FROM_TYPES = [
@@ -52,6 +53,15 @@ const RECEIVED_FROM_TYPES = [
   'Event',
   'Donation',
   'Other'
+] as const;
+
+const PAYMENT_METHODS = [
+  'Cash',
+  'Bank Transfer',
+  'Credit Card',
+  'Debit Card',
+  'Check',
+  'Online Payment'
 ] as const;
 
 export function TransactionForm({ 
@@ -68,7 +78,8 @@ export function TransactionForm({
     receivedFrom: '',
     receivedFromType: '',
     category: '',
-    accountType: selectedAccountId
+    accountType: selectedAccountId,
+    paymentMethod: 'Cash'
   });
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -86,9 +97,10 @@ export function TransactionForm({
         
         // Only get active categories
         const activeCategories = fetchedCategories.filter(cat => 
-          cat.status === 'Active' && 
-          (cat.type === 'Income' || cat.type === 'Expense')
+          cat.status === 'Active'
         );
+        
+        console.log('Raw categories from Firestore:', activeCategories);
         setCategories(activeCategories);
       } catch (error) {
         console.error('Error fetching categories:', error);
@@ -100,13 +112,11 @@ export function TransactionForm({
 
   // Filter categories based on transaction type
   const filteredCategories = categories.filter(category => {
-    if (formData.type === 'debit') {
-      return category.type === 'Expense';
-    }
-    if (formData.type === 'credit') {
-      return category.type === 'Income';
-    }
-    return false;
+    // For credit (add) transactions, show Income categories
+    // For debit (subtract) transactions, show Expense categories
+    return formData.type === 'credit' ? 
+      category.type === 'Income' : 
+      category.type === 'Expense';
   });
 
   // Sort categories alphabetically
@@ -114,10 +124,10 @@ export function TransactionForm({
     a.name.localeCompare(b.name)
   );
 
-  // Sort accounts alphabetically
-  const sortedAccounts = [...accounts].sort((a, b) => 
-    a.name.localeCompare(b.name)
-  );
+  // Debug log all categories and filtered results
+  console.log('DEBUG - All Categories:', categories.map(c => ({ name: c.name, type: c.type })));
+  console.log('DEBUG - Transaction Type:', formData.type);
+  console.log('DEBUG - Filtered Categories:', filteredCategories.map(c => ({ name: c.name, type: c.type })));
 
   useEffect(() => {
     // Reset category when transaction type changes
@@ -126,6 +136,11 @@ export function TransactionForm({
       category: ''
     }));
   }, [formData.type]);
+
+  // Sort accounts alphabetically
+  const sortedAccounts = [...accounts].sort((a, b) => 
+    a.name.localeCompare(b.name)
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,7 +211,9 @@ export function TransactionForm({
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             required
           >
-            <option value="">Select {formData.type === 'credit' ? 'Income' : 'Expense'} Category</option>
+            <option value="">
+              Select {formData.type === 'credit' ? 'Income' : 'Expense'} Category
+            </option>
             {sortedCategories.map(category => (
               <option key={category.id} value={category.id}>
                 {category.name}
@@ -217,6 +234,22 @@ export function TransactionForm({
           value={formData.amount}
           onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) })}
         />
+      </div>
+
+      <div>
+        <Label htmlFor="paymentMethod">Payment Method</Label>
+        <select
+          id="paymentMethod"
+          className="w-full p-2 border rounded"
+          value={formData.paymentMethod}
+          onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+          required
+        >
+          <option value="">Select Payment Method</option>
+          {PAYMENT_METHODS.map(method => (
+            <option key={method} value={method}>{method}</option>
+          ))}
+        </select>
       </div>
 
       {formData.type === 'credit' && (

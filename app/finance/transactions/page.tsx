@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,7 +9,8 @@ import { Plus, ArrowRightLeft } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { formatLKR } from '@/lib/utils';
 import { DataTable } from '@/components/ui/data-table';
-import { TransactionForm } from '@/components/forms/transaction-form';
+import { FinanceTransactionForm } from '@/components/forms/finance-transaction-form';
+import type { FinanceTransactionFormData } from '@/components/forms/finance-transaction-form';
 import { handleTransaction } from '@/lib/transactions';
 import { useToast } from '@/components/ui/use-toast';
 import { Label } from '@/components/ui/label';
@@ -27,270 +28,257 @@ interface AccountType {
 
 interface Transaction {
   id: string;
-  amount: number;
-  type: 'credit' | 'debit' | 'transfer';
-  description: string;
   date: string;
-  transferToAccount?: string;
-  transferFromAccount?: string;
-  accountName?: string;
-  accountId?: string;
-  transferToAccountName?: string;
-  transferFromAccountName?: string;
+  type: 'Income' | 'Expense';
+  category: string;
+  amount: number;
+  description: string;
+  paymentMethod: string;
+  status: 'Pending' | 'Completed' | 'Cancelled';
+  createdAt: string;
+  updatedAt?: string;
+  bankAccount?: string;
+}
+
+interface Column {
+  key: string;
+  label: string;
+  sortable?: boolean;
+  render?: (transaction: Transaction) => React.ReactNode;
 }
 
 export default function TransactionsPage() {
   const { toast } = useToast();
-  const [accounts, setAccounts] = useState<AccountType[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<AccountType | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch all accounts
-  const fetchAccounts = async () => {
+  // Fetch transactions
+  const fetchTransactions = async () => {
     try {
-      setLoading(true);
-      const accountsRef = collection(db, 'accountTypes');
-      const snapshot = await getDocs(accountsRef);
-      
-      const allAccounts = snapshot.docs.map(doc => ({
+      const transactionsRef = collection(db, 'transactions');
+      const snapshot = await getDocs(transactionsRef);
+      const transactionsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      })) as AccountType[];
-      
-      // Filter accounts to only show those with status 'Active'
-      const activeAccounts = allAccounts.filter(account => account.status === 'Active');
-      setAccounts(activeAccounts);
+      })) as Transaction[];
+      setTransactions(transactionsData);
+      setLoading(false);
     } catch (error) {
-      console.error('Error fetching accounts:', error);
+      console.error('Error fetching transactions:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch accounts",
-        variant: "destructive",
+        description: "Failed to fetch transactions",
+        variant: "destructive"
       });
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAccounts();
+    fetchTransactions();
   }, []);
 
-  // Sort accounts alphabetically
-  const sortedAccounts = [...accounts].sort((a, b) => 
-    a.name.localeCompare(b.name)
+  // Get transactions sorted by date
+  const sortedTransactions = [...transactions].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
-  // Get all transactions from all accounts and add account details
-  const allTransactions = accounts.flatMap(account => 
-    (account.transactions || []).map(transaction => ({
-      ...transaction,
-      accountName: account.name,
-      accountId: account.id,
-      // Add transfer account name for better display
-      transferToAccountName: transaction.transferToAccount 
-        ? accounts.find(a => a.id === transaction.transferToAccount)?.name 
-        : undefined,
-      transferFromAccountName: transaction.transferFromAccount
-        ? accounts.find(a => a.id === transaction.transferFromAccount)?.name
-        : undefined
-    }))
-  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  // Calculate totals
+  const totalIncome = transactions
+    .filter(t => t.type === 'Income' && t.status === 'Completed')
+    .reduce((sum, t) => sum + t.amount, 0);
 
+  const totalExpenses = transactions
+    .filter(t => t.type === 'Expense' && t.status === 'Completed')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const balance = totalIncome - totalExpenses;
+
+  // Define columns for the data table
   const columns = [
     {
-      key: "date",
-      label: "Date",
-      sortable: true,
+      key: 'date',
+      label: 'Date',
+      sortable: true as const,
       render: (transaction: Transaction) => new Date(transaction.date).toLocaleDateString()
     },
     {
-      key: "accountName",
-      label: "Account",
-      sortable: true,
-      render: (transaction: Transaction) => {
-        if (transaction.type === 'transfer') {
-          return transaction.transferToAccountName 
-            ? `${transaction.accountName} → ${transaction.transferToAccountName}`
-            : transaction.accountName;
-        }
-        return transaction.accountName;
-      }
+      key: 'type',
+      label: 'Type',
+      sortable: true as const
     },
     {
-      key: "type",
-      label: "Type",
-      sortable: true,
+      key: 'category',
+      label: 'Category',
+      sortable: true as const
+    },
+    { 
+      key: 'amount', 
+      label: 'Amount',
+      sortable: true as const,
       render: (transaction: Transaction) => (
-        <span className={`px-2 py-1 rounded-full text-xs ${
-          transaction.type === 'credit' 
-            ? 'bg-green-100 text-green-800'
-            : transaction.type === 'debit'
-            ? 'bg-red-100 text-red-800'
-            : 'bg-blue-100 text-blue-800'
-        }`}>
-          {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+        <span className={transaction.type === 'Income' ? 'text-green-600' : 'text-red-600'}>
+          {formatLKR(transaction.amount)}
         </span>
       )
     },
     {
-      key: "amount",
-      label: "Amount",
-      sortable: true,
-      render: (transaction: Transaction) => formatLKR(transaction.amount)
+      key: 'paymentMethod',
+      label: 'Payment Method',
+      sortable: true as const
     },
     {
-      key: "description",
-      label: "Description",
-      sortable: true
+      key: 'description',
+      label: 'Description',
+      sortable: true as const
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true as const
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false as const,
+      render: (transaction: Transaction) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setEditingTransaction(transaction);
+              setIsTransactionModalOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-red-500"
+            onClick={() => handleDelete(transaction.id)}
+          >
+            Delete
+          </Button>
+        </div>
+      )
     }
   ];
 
+  const handleSubmit = async (data: FinanceTransactionFormData) => {
+    try {
+      const transactionData = {
+        ...data,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      if (editingTransaction) {
+        // Update existing transaction
+        const transactionRef = doc(db, 'transactions', editingTransaction.id);
+        await updateDoc(transactionRef, transactionData);
+      } else {
+        // Create new transaction
+        const transactionRef = await addDoc(collection(db, 'transactions'), transactionData);
+      }
+
+      // Refresh transactions
+      fetchTransactions();
+      
+      // Close modal and show success message
+      setIsTransactionModalOpen(false);
+      setEditingTransaction(null);
+      toast({
+        title: "Success",
+        description: editingTransaction ? "Transaction updated successfully" : "Transaction added successfully"
+      });
+    } catch (error: any) {
+      console.error('Error saving transaction:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save transaction",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this transaction?')) {
+      try {
+        await deleteDoc(doc(db, 'transactions', id));
+        fetchTransactions();
+        toast({
+          title: "Success",
+          description: "Transaction deleted successfully"
+        });
+      } catch (error) {
+        console.error('Error deleting transaction:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete transaction",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Transactions</h1>
-          <p className="text-sm text-muted-foreground">Manage your financial transactions</p>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            onClick={() => setIsTransactionModalOpen(true)}
-            className="bg-green-500 hover:bg-green-600 text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Transaction
-          </Button>
-          <Button 
-            onClick={() => {
-              setIsTransactionModalOpen(true);
-              if (accounts.length > 0) {
-                setSelectedAccount(accounts[0]);
-              }
-            }}
-            className="bg-blue-500 hover:bg-blue-600 text-white"
-          >
-            <ArrowRightLeft className="h-4 w-4 mr-2" />
-            Transfer Money
-          </Button>
-        </div>
+        <h1 className="text-2xl font-bold">Finance Management</h1>
+        <Button onClick={() => setIsTransactionModalOpen(true)}>
+          Add Transaction
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4 bg-card">
-          <h3 className="text-sm font-medium text-muted-foreground">Total Credits</h3>
-          <p className="text-2xl font-bold text-green-600">
-            {formatLKR(allTransactions.reduce((sum, t) => 
-              t.type === 'credit' ? sum + t.amount : sum, 0
-            ))}
-          </p>
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold">Total Income</h3>
+          <p className="text-2xl text-green-600">{formatLKR(totalIncome)}</p>
         </Card>
-        <Card className="p-4 bg-card">
-          <h3 className="text-sm font-medium text-muted-foreground">Total Debits</h3>
-          <p className="text-2xl font-bold text-red-600">
-            {formatLKR(allTransactions.reduce((sum, t) => 
-              t.type === 'debit' ? sum + t.amount : sum, 0
-            ))}
-          </p>
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold">Total Expenses</h3>
+          <p className="text-2xl text-red-600">{formatLKR(totalExpenses)}</p>
         </Card>
-        <Card className="p-4 bg-card">
-          <h3 className="text-sm font-medium text-muted-foreground">Total Transfers</h3>
-          <p className="text-2xl font-bold text-blue-600">
-            {formatLKR(allTransactions.reduce((sum, t) => 
-              t.type === 'transfer' ? sum + t.amount : sum, 0
-            ))}
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold">Balance</h3>
+          <p className={`text-2xl ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {formatLKR(balance)}
           </p>
         </Card>
       </div>
 
-      <Card className="p-6">
-        <DataTable
-          columns={columns}
-          data={allTransactions}
-        />
-      </Card>
+      <DataTable
+        columns={columns}
+        data={sortedTransactions}
+        onEdit={(transaction) => {
+          setEditingTransaction(transaction as Transaction);
+          setIsTransactionModalOpen(true);
+        }}
+        onDelete={handleDelete}
+      />
 
       <Modal
         isOpen={isTransactionModalOpen}
         onClose={() => {
           setIsTransactionModalOpen(false);
-          setSelectedAccount(null);
+          setEditingTransaction(null);
         }}
-        title="Add New Transaction"
+        title={editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}
       >
-        {accounts.length > 0 ? (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="account">Select Account</Label>
-              <select
-                id="account"
-                className="w-full p-2 border rounded"
-                value={selectedAccount?.id || ''}
-                onChange={(e) => {
-                  const account = accounts.find(a => a.id === e.target.value);
-                  setSelectedAccount(account || null);
-                }}
-                required
-              >
-                <option value="">Select Account</option>
-                {sortedAccounts.map(account => (
-                  <option key={account.id} value={account.id}>
-                    {account.name} ({formatLKR(account.balance || 0)})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {selectedAccount && (
-              <TransactionForm
-                onSubmit={async (data) => {
-                  try {
-                    await handleTransaction(selectedAccount.id, data, () => {
-                      setIsTransactionModalOpen(false);
-                      setSelectedAccount(null);
-                      fetchAccounts();
-                    }, (error) => {
-                      toast({
-                        title: "Error",
-                        description: error,
-                        variant: "destructive",
-                      });
-                    });
-                  } catch (error) {
-                    console.error('Error handling transaction:', error);
-                  }
-                }}
-                onClose={() => {
-                  setIsTransactionModalOpen(false);
-                  setSelectedAccount(null);
-                }}
-                accounts={accounts}
-                selectedAccountId={selectedAccount.id}
-              />
-            )}
-          </div>
-        ) : (
-          <div className="p-4 text-center">
-            <p className="text-sm text-gray-600 mb-4">
-              Please create an account first in the Settings page.
-            </p>
-            <Button 
-              onClick={() => setIsTransactionModalOpen(false)} 
-              variant="outline"
-            >
-              Close
-            </Button>
-          </div>
-        )}
+        <FinanceTransactionForm
+          onSubmit={handleSubmit}
+          onClose={() => {
+            setIsTransactionModalOpen(false);
+            setEditingTransaction(null);
+          }}
+        />
       </Modal>
     </div>
   );
