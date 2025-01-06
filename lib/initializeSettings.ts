@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from './firebase';
 
 const defaultDepartments = [
@@ -18,12 +18,9 @@ const defaultRoles = [
 ];
 
 const defaultAccountTypes = [
-  { name: 'Match Day Revenue', type: 'Income', description: 'Revenue from matches', status: 'Active' },
-  { name: 'Sponsorship', type: 'Income', description: 'Sponsorship income', status: 'Active' },
-  { name: 'Player Wages', type: 'Expense', description: 'Player salaries', status: 'Active' },
-  { name: 'Operating Costs', type: 'Expense', description: 'Daily operation costs', status: 'Active' },
+  // Bank Accounts
   { 
-    name: 'Main Operating Account',
+    name: 'Main Bank Account',
     type: 'Bank',
     description: 'Primary bank account for club operations',
     status: 'Active',
@@ -31,35 +28,65 @@ const defaultAccountTypes = [
     bankDetails: {
       bankName: 'Bank of Ceylon',
       accountNumber: '1234567890',
-      branchName: 'Main Branch',
-      swiftCode: 'BCEYLKLX'
+      branchName: 'Main Branch'
     }
   },
   { 
-    name: 'Player Salaries Account',
-    type: 'Bank',
-    description: 'Dedicated account for player salaries',
+    name: 'Petty Cash',
+    type: 'Cash',
+    description: 'Cash on hand for small expenses',
     status: 'Active',
-    balance: 500000,
-    bankDetails: {
-      bankName: 'Commercial Bank',
-      accountNumber: '0987654321',
-      branchName: 'City Branch',
-      swiftCode: 'CCEYLKLX'
-    }
+    balance: 50000
+  },
+  // Expense Account Types
+  { 
+    name: 'Operating Expenses',
+    type: 'Expense',
+    description: 'General operating expenses',
+    status: 'Active'
   },
   { 
-    name: 'Revenue Collection Account',
-    type: 'Bank',
-    description: 'Account for match day and sponsorship revenue',
-    status: 'Active',
-    balance: 750000,
-    bankDetails: {
-      bankName: 'Sampath Bank',
-      accountNumber: '5678901234',
-      branchName: 'Sports Complex Branch',
-      swiftCode: 'SCEYLKLX'
-    }
+    name: 'Player Expenses',
+    type: 'Expense',
+    description: 'Player-related expenses',
+    status: 'Active'
+  },
+  { 
+    name: 'Staff Expenses',
+    type: 'Expense',
+    description: 'Staff-related expenses',
+    status: 'Active'
+  },
+  { 
+    name: 'Facility Expenses',
+    type: 'Expense',
+    description: 'Facility maintenance and operations',
+    status: 'Active'
+  },
+  { 
+    name: 'Equipment Expenses',
+    type: 'Expense',
+    description: 'Sports equipment and supplies',
+    status: 'Active'
+  },
+  // Income Account Types
+  { 
+    name: 'Match Income',
+    type: 'Income',
+    description: 'Income from matches',
+    status: 'Active'
+  },
+  { 
+    name: 'Sponsorship Income',
+    type: 'Income',
+    description: 'Income from sponsorships',
+    status: 'Active'
+  },
+  { 
+    name: 'Merchandise Income',
+    type: 'Income',
+    description: 'Income from merchandise sales',
+    status: 'Active'
   }
 ];
 
@@ -290,6 +317,13 @@ const defaultReports = [
   }
 ];
 
+const defaultSponsorshipTypes = [
+  { name: 'Platinum' },
+  { name: 'Gold' },
+  { name: 'Silver' },
+  { name: 'Bronze' }
+];
+
 export const defaultSettings = {
   organizationName: "Young Silver Sports Club",
   // ... other settings
@@ -297,43 +331,55 @@ export const defaultSettings = {
 
 export async function initializeSettings() {
   try {
-    // Check if data already exists
-    const collections = [
-      'departments', 
-      'roles', 
-      'accountTypes', 
-      'categories', 
-      'staff', 
-      'players',
-      'reports'
-    ];
+    // Check if collections are empty before initializing
+    const departmentsSnapshot = await getDocs(collection(db, 'departments'));
+    const rolesSnapshot = await getDocs(collection(db, 'roles'));
+    const accountTypesSnapshot = await getDocs(collection(db, 'accountTypes'));
+    const categoriesSnapshot = await getDocs(collection(db, 'categories'));
+    const sponsorshipTypesSnapshot = await getDocs(collection(db, 'sponsorshipTypes'));
 
-    for (const collectionName of collections) {
-      const snapshot = await getDocs(collection(db, collectionName));
-      if (snapshot.empty) {
-        // Initialize the collection with default data
-        const defaultData = {
-          departments: defaultDepartments,
-          roles: defaultRoles,
-          accountTypes: defaultAccountTypes,
-          categories: defaultCategories,
-          staff: defaultStaff,
-          players: defaultPlayers,
-          reports: defaultReports
-        }[collectionName];
+    // Always refresh account types
+    const accountTypesRef = collection(db, 'accountTypes');
+    const existingAccountTypes = accountTypesSnapshot.docs.map(doc => doc.id);
+    
+    // Delete existing account types
+    for (const docId of existingAccountTypes) {
+      await deleteDoc(doc(db, 'accountTypes', docId));
+    }
+    
+    // Add new account types
+    for (const accountType of defaultAccountTypes) {
+      await addDoc(accountTypesRef, accountType);
+    }
 
-        if (defaultData) {
-          for (const item of defaultData) {
-            await addDoc(collection(db, collectionName), {
-              ...item,
-              createdAt: new Date().toISOString()
-            });
-          }
-          console.log(`Initialized ${collectionName}`);
-        }
+    // Initialize other collections if empty
+    if (departmentsSnapshot.empty) {
+      for (const department of defaultDepartments) {
+        await addDoc(collection(db, 'departments'), department);
       }
     }
+
+    if (rolesSnapshot.empty) {
+      for (const role of defaultRoles) {
+        await addDoc(collection(db, 'roles'), role);
+      }
+    }
+
+    if (categoriesSnapshot.empty) {
+      for (const category of defaultCategories) {
+        await addDoc(collection(db, 'categories'), category);
+      }
+    }
+
+    if (sponsorshipTypesSnapshot.empty) {
+      for (const type of defaultSponsorshipTypes) {
+        await addDoc(collection(db, 'sponsorshipTypes'), type);
+      }
+    }
+
+    console.log('Settings initialized successfully');
   } catch (error) {
     console.error('Error initializing settings:', error);
+    throw error;
   }
 } 

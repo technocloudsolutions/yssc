@@ -11,6 +11,7 @@ export interface Transaction {
   transferFromAccount?: string;
   receivedFrom?: string;
   receivedFromType?: string;
+  category?: string;
 }
 
 export interface TransactionFormData {
@@ -20,6 +21,7 @@ export interface TransactionFormData {
   transferToAccount?: string;
   receivedFrom?: string;
   receivedFromType?: string;
+  category?: string;
 }
 
 export async function handleTransaction(
@@ -100,42 +102,60 @@ export async function handleTransaction(
 
       onSuccess();
     } else {
-      // Handle regular credit/debit transaction
+      // Handle credit or debit
       const accountRef = doc(collection(db, 'accountTypes'), selectedAccountId);
       const accountDoc = await getDoc(accountRef);
-      const currentData = accountDoc.data();
-      
-      if (!currentData) {
-        throw new Error('Account not found');
+
+      if (!accountDoc.exists()) {
+        onError('Account does not exist');
+        return;
       }
 
-      const currentBalance = currentData.balance || 0;
-      const transactionAmount = data.type === 'credit' ? data.amount : -data.amount;
-      const newBalance = currentBalance + transactionAmount;
+      const accountData = accountDoc.data();
 
-      if (newBalance < 0) {
-        throw new Error('Transaction would result in negative balance');
+      // Ensure account is active
+      if (accountData.status !== 'Active') {
+        onError('Account must be active to perform transactions');
+        return;
       }
 
+      // Ensure balance is properly initialized
+      const currentBalance = accountData.balance || 0;
+      const transactionAmount = Math.abs(data.amount);
+
+      // For debit transactions, check if there's sufficient balance
+      if (data.type === 'debit' && currentBalance < transactionAmount) {
+        onError(`Insufficient balance. Available: ${currentBalance.toFixed(2)}, Required: ${transactionAmount}`);
+        return;
+      }
+
+      // Create transaction record
       const transaction = {
         id: Date.now().toString(),
-        amount: data.amount,
+        amount: transactionAmount,
         type: data.type,
         description: data.description,
         date: new Date().toISOString(),
         receivedFrom: data.receivedFrom,
-        receivedFromType: data.receivedFromType
+        receivedFromType: data.receivedFromType,
+        category: data.category // Add category to transaction record
       };
 
+      // Calculate new balance
+      const newBalance = data.type === 'credit' 
+        ? currentBalance + transactionAmount
+        : currentBalance - transactionAmount;
+
+      // Update account
       await updateDoc(accountRef, {
         balance: newBalance,
-        transactions: [...(currentData.transactions || []), transaction]
+        transactions: [...(accountData.transactions || []), transaction]
       });
 
       onSuccess();
     }
   } catch (error) {
-    console.error('Error processing transaction:', error);
-    onError(error instanceof Error ? error.message : 'There was an error processing your transaction.');
+    console.error('Transaction error:', error);
+    onError(error instanceof Error ? error.message : 'An error occurred');
   }
 } 

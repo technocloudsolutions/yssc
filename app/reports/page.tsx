@@ -51,7 +51,7 @@ const formatDetailedAnalysis = (details: any) => {
     if (typeof value === 'number') {
       // Format currency values
       if (value > 1000) {
-        return `$${(value).toLocaleString()}`;
+        return `LKR ${(value).toLocaleString()}`;
       }
       return value.toString();
     }

@@ -12,15 +12,19 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Loader2, Building2, FileText, Printer, Plus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+interface SponsorshipType {
+  id: string;
+  name: string;
+}
+
 interface Sponsor {
   id: string;
   name: string;
+  companyName: string;
   email: string;
   phone: string;
   website: string;
-  industry: string;
-  sponsorshipType: 'Platinum' | 'Gold' | 'Silver' | 'Bronze';
-  sponsorshipAmount: number;
+  sponsorshipType: string;
   startDate: string;
   endDate: string;
   status: 'Active' | 'Pending' | 'Expired' | 'Terminated';
@@ -73,8 +77,8 @@ function ViewSponsorModal({ sponsor, isOpen, onClose }: ViewModalProps) {
           <TabsContent value="details" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium">Industry</label>
-                <p className="text-sm">{sponsor.industry || 'N/A'}</p>
+                <label className="text-sm font-medium">Company Name</label>
+                <p className="text-sm">{sponsor.companyName || 'N/A'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium">Website</label>
@@ -88,10 +92,6 @@ function ViewSponsorModal({ sponsor, isOpen, onClose }: ViewModalProps) {
               <div>
                 <label className="text-sm font-medium">Type</label>
                 <p className="text-sm">{sponsor.sponsorshipType}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Amount</label>
-                <p className="text-sm">LKR {sponsor.sponsorshipAmount.toLocaleString()}</p>
               </div>
               <div>
                 <label className="text-sm font-medium">Start Date</label>
@@ -145,17 +145,17 @@ function ViewSponsorModal({ sponsor, isOpen, onClose }: ViewModalProps) {
 
 export default function SponsorsPage() {
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [sponsorshipTypes, setSponsorshipTypes] = useState<SponsorshipType[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSponsor, setSelectedSponsor] = useState<Sponsor | null>(null);
   const [formData, setFormData] = useState<Omit<Sponsor, 'id'>>({
     name: '',
+    companyName: '',
     email: '',
     phone: '',
     website: '',
-    industry: '',
     sponsorshipType: 'Gold',
-    sponsorshipAmount: 0,
     startDate: '',
     endDate: '',
     status: 'Active',
@@ -168,6 +168,7 @@ export default function SponsorsPage() {
 
   useEffect(() => {
     fetchSponsors();
+    fetchSponsorshipTypes();
   }, []);
 
   const fetchSponsors = async () => {
@@ -183,6 +184,20 @@ export default function SponsorsPage() {
       console.error('Error fetching sponsors:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSponsorshipTypes = async () => {
+    try {
+      const typesCollection = collection(db, 'sponsorshipTypes');
+      const typesSnapshot = await getDocs(typesCollection);
+      const typesList = typesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as SponsorshipType[];
+      setSponsorshipTypes(typesList);
+    } catch (error) {
+      console.error('Error fetching sponsorship types:', error);
     }
   };
 
@@ -220,12 +235,11 @@ export default function SponsorsPage() {
   const resetForm = () => {
     setFormData({
       name: '',
+      companyName: '',
       email: '',
       phone: '',
       website: '',
-      industry: '',
       sponsorshipType: 'Gold',
-      sponsorshipAmount: 0,
       startDate: '',
       endDate: '',
       status: 'Active',
@@ -256,16 +270,16 @@ export default function SponsorsPage() {
       render: (row: Sponsor) => row.name
     },
     {
+      key: 'companyName',
+      label: 'Company Name',
+      sortable: true,
+      render: (row: Sponsor) => row.companyName
+    },
+    {
       key: 'sponsorshipType',
       label: 'Type',
       sortable: true,
       render: (row: Sponsor) => row.sponsorshipType
-    },
-    {
-      key: 'sponsorshipAmount',
-      label: 'Amount',
-      sortable: true,
-      render: (row: Sponsor) => `LKR ${row.sponsorshipAmount.toLocaleString()}`
     },
     {
       key: 'status',
@@ -361,6 +375,13 @@ export default function SponsorsPage() {
                 required
               />
             </div>
+            <div className="col-span-2">
+              <label className="text-sm font-medium">Company Name</label>
+              <Input
+                value={formData.companyName}
+                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+              />
+            </div>
             <div>
               <label className="text-sm font-medium">Email</label>
               <Input
@@ -384,32 +405,18 @@ export default function SponsorsPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Industry</label>
-              <Input
-                value={formData.industry}
-                onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-              />
-            </div>
-            <div>
               <label className="text-sm font-medium">Sponsorship Type</label>
               <select
                 className="w-full rounded-md border border-input bg-background px-3 py-2"
                 value={formData.sponsorshipType}
-                onChange={(e) => setFormData({ ...formData, sponsorshipType: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, sponsorshipType: e.target.value })}
               >
-                <option value="Platinum">Platinum</option>
-                <option value="Gold">Gold</option>
-                <option value="Silver">Silver</option>
-                <option value="Bronze">Bronze</option>
+                {sponsorshipTypes.map((type) => (
+                  <option key={type.id} value={type.name}>
+                    {type.name}
+                  </option>
+                ))}
               </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Amount (LKR)</label>
-              <Input
-                type="number"
-                value={formData.sponsorshipAmount}
-                onChange={(e) => setFormData({ ...formData, sponsorshipAmount: Number(e.target.value) })}
-              />
             </div>
             <div>
               <label className="text-sm font-medium">Start Date</label>

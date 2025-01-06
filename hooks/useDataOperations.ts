@@ -10,27 +10,41 @@ export type Collection =
   | 'staff'
   | 'users'
   | 'departments'
-  | 'roles';
+  | 'roles'
+  | 'sponsorshipTypes';
 
 export function useDataOperations(collectionName: Collection) {
   const [items, setItems] = useState<any[]>([]);
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
-
   const fetchItems = async () => {
     try {
+      console.log(`Fetching ${collectionName}...`);
       const querySnapshot = await getDocs(collection(db, collectionName));
-      const fetchedItems = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      console.log(`Got ${querySnapshot.size} documents from ${collectionName}`);
+      
+      const fetchedItems = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log(`Document data for ${doc.id}:`, data);
+        return {
+          id: doc.id,
+          ...data
+        };
+      });
+      
+      console.log(`Processed ${collectionName} items:`, fetchedItems);
       setItems(fetchedItems);
     } catch (error) {
       console.error(`Error fetching ${collectionName}:`, error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+      }
+      throw error;
     }
   };
+
+  useEffect(() => {
+    fetchItems();
+  }, [collectionName]);
 
   const addItem = async (data: any) => {
     try {

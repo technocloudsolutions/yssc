@@ -12,15 +12,17 @@ import { addDays } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
 
-interface Sponsor {
+interface Transaction {
   id: string;
-  name: string;
-  sponsorshipType: 'Platinum' | 'Gold' | 'Silver' | 'Bronze';
-  sponsorshipAmount: number;
-  startDate: string;
-  endDate: string;
-  status: 'Active' | 'Pending' | 'Expired' | 'Terminated';
-  industry: string;
+  date: string;
+  accountType: string;
+  category: string;
+  amount: number;
+  description: string;
+  type: 'Income' | 'Expense';
+  status: 'Pending' | 'Completed' | 'Cancelled';
+  receivedFrom?: string;
+  receivedFromType?: string;
 }
 
 interface SponsorshipStats {
@@ -33,27 +35,30 @@ interface SponsorshipStats {
       amount: number;
     };
   };
-  byIndustry: {
+  byStatus: {
     [key: string]: {
       count: number;
       amount: number;
     };
   };
-  byStatus: {
-    [key: string]: number;
+  byCategory: {
+    [key: string]: {
+      count: number;
+      amount: number;
+    };
   };
 }
 
 export default function SponsorsReportPage() {
   const [loading, setLoading] = useState(true);
-  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stats, setStats] = useState<SponsorshipStats>({
     totalSponsors: 0,
     activeSponsors: 0,
     totalAmount: 0,
     byType: {},
-    byIndustry: {},
     byStatus: {},
+    byCategory: {},
   });
   const [date, setDate] = useState<DateRange>({
     from: new Date(new Date().getFullYear(), 0, 1),
@@ -61,57 +66,68 @@ export default function SponsorsReportPage() {
   });
 
   useEffect(() => {
-    fetchSponsors();
+    fetchTransactions();
   }, [date]);
 
-  const fetchSponsors = async () => {
+  const fetchTransactions = async () => {
     try {
-      const sponsorsCollection = collection(db, 'sponsors');
-      const sponsorsSnapshot = await getDocs(sponsorsCollection);
-      const sponsorsList = sponsorsSnapshot.docs.map(doc => ({
+      const transactionsRef = collection(db, 'transactions');
+      const snapshot = await getDocs(transactionsRef);
+      const transactionsList = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      })) as Sponsor[];
+      })) as Transaction[];
 
-      setSponsors(sponsorsList);
-      calculateStats(sponsorsList);
+      // Filter for sponsor-related transactions
+      const sponsorTransactions = transactionsList.filter(t => 
+        t.type === 'Income' && 
+        t.receivedFromType === 'Sponsor' &&
+        t.status === 'Completed'
+      );
+
+      setTransactions(sponsorTransactions);
+      calculateStats(sponsorTransactions);
     } catch (error) {
-      console.error('Error fetching sponsors:', error);
+      console.error('Error fetching transactions:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStats = (sponsorsList: Sponsor[]) => {
+  const calculateStats = (sponsorTransactions: Transaction[]) => {
     const stats: SponsorshipStats = {
-      totalSponsors: sponsorsList.length,
-      activeSponsors: sponsorsList.filter(s => s.status === 'Active').length,
-      totalAmount: sponsorsList.reduce((sum, s) => sum + s.sponsorshipAmount, 0),
+      totalSponsors: new Set(sponsorTransactions.map(t => t.receivedFrom)).size,
+      activeSponsors: new Set(sponsorTransactions.filter(t => 
+        new Date(t.date) <= new Date() && 
+        new Date(t.date).getFullYear() === new Date().getFullYear()
+      ).map(t => t.receivedFrom)).size,
+      totalAmount: sponsorTransactions.reduce((sum, t) => sum + t.amount, 0),
       byType: {},
-      byIndustry: {},
       byStatus: {},
+      byCategory: {},
     };
 
-    sponsorsList.forEach(sponsor => {
-      // By Type
-      if (!stats.byType[sponsor.sponsorshipType]) {
-        stats.byType[sponsor.sponsorshipType] = { count: 0, amount: 0 };
+    sponsorTransactions.forEach(transaction => {
+      // By Category
+      if (!stats.byCategory[transaction.category]) {
+        stats.byCategory[transaction.category] = { count: 0, amount: 0 };
       }
-      stats.byType[sponsor.sponsorshipType].count++;
-      stats.byType[sponsor.sponsorshipType].amount += sponsor.sponsorshipAmount;
+      stats.byCategory[transaction.category].count++;
+      stats.byCategory[transaction.category].amount += transaction.amount;
 
-      // By Industry
-      if (!stats.byIndustry[sponsor.industry]) {
-        stats.byIndustry[sponsor.industry] = { count: 0, amount: 0 };
+      // By Type (using accountType)
+      if (!stats.byType[transaction.accountType]) {
+        stats.byType[transaction.accountType] = { count: 0, amount: 0 };
       }
-      stats.byIndustry[sponsor.industry].count++;
-      stats.byIndustry[sponsor.industry].amount += sponsor.sponsorshipAmount;
+      stats.byType[transaction.accountType].count++;
+      stats.byType[transaction.accountType].amount += transaction.amount;
 
       // By Status
-      if (!stats.byStatus[sponsor.status]) {
-        stats.byStatus[sponsor.status] = 0;
+      if (!stats.byStatus[transaction.status]) {
+        stats.byStatus[transaction.status] = { count: 0, amount: 0 };
       }
-      stats.byStatus[sponsor.status]++;
+      stats.byStatus[transaction.status].count++;
+      stats.byStatus[transaction.status].amount += transaction.amount;
     });
 
     setStats(stats);
@@ -127,39 +143,31 @@ export default function SponsorsReportPage() {
       ['Active Sponsors:', stats.activeSponsors],
       ['Total Sponsorship Amount:', `LKR ${stats.totalAmount.toLocaleString()}`],
       [''],
-      ['By Sponsorship Type'],
-      ['Type', 'Count', 'Amount'],
+      ['By Category'],
+      ['Category', 'Count', 'Total Amount'],
+      ...Object.entries(stats.byCategory).map(([category, data]) => [
+        category,
+        data.count,
+        `LKR ${data.amount.toLocaleString()}`
+      ]),
+      [''],
+      ['By Account Type'],
+      ['Type', 'Count', 'Total Amount'],
       ...Object.entries(stats.byType).map(([type, data]) => [
         type,
         data.count,
-        `LKR ${data.amount.toLocaleString()}`,
+        `LKR ${data.amount.toLocaleString()}`
       ]),
       [''],
-      ['By Industry'],
-      ['Industry', 'Count', 'Amount'],
-      ...Object.entries(stats.byIndustry).map(([industry, data]) => [
-        industry || 'Unspecified',
-        data.count,
-        `LKR ${data.amount.toLocaleString()}`,
-      ]),
-      [''],
-      ['By Status'],
-      ['Status', 'Count'],
-      ...Object.entries(stats.byStatus).map(([status, count]) => [
-        status,
-        count,
-      ]),
-      [''],
-      ['Detailed Sponsor List'],
-      ['Name', 'Type', 'Amount', 'Status', 'Start Date', 'End Date', 'Industry'],
-      ...sponsors.map(sponsor => [
-        sponsor.name,
-        sponsor.sponsorshipType,
-        `LKR ${sponsor.sponsorshipAmount.toLocaleString()}`,
-        sponsor.status,
-        sponsor.startDate,
-        sponsor.endDate,
-        sponsor.industry || 'Unspecified',
+      ['Detailed Transaction List'],
+      ['Date', 'Sponsor', 'Category', 'Account Type', 'Amount', 'Description'],
+      ...transactions.map(t => [
+        new Date(t.date).toLocaleDateString(),
+        t.receivedFrom,
+        t.category,
+        t.accountType,
+        `LKR ${t.amount.toLocaleString()}`,
+        t.description,
       ]),
     ];
 
@@ -229,13 +237,13 @@ export default function SponsorsReportPage() {
 
       <div className="grid grid-cols-2 gap-6">
         <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Sponsorship by Type</h2>
+          <h2 className="text-lg font-semibold mb-4">Sponsorship by Category</h2>
           <div className="space-y-4">
-            {Object.entries(stats.byType).map(([type, data]) => (
-              <div key={type} className="flex justify-between items-center">
+            {Object.entries(stats.byCategory).map(([category, data]) => (
+              <div key={category} className="flex justify-between items-center">
                 <div>
-                  <p className="font-medium">{type}</p>
-                  <p className="text-sm text-muted-foreground">{data.count} sponsors</p>
+                  <p className="font-medium">{category}</p>
+                  <p className="text-sm text-muted-foreground">{data.count} transactions</p>
                 </div>
                 <p className="font-medium">LKR {data.amount.toLocaleString()}</p>
               </div>
@@ -244,13 +252,13 @@ export default function SponsorsReportPage() {
         </Card>
 
         <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Sponsorship by Industry</h2>
+          <h2 className="text-lg font-semibold mb-4">Sponsorship by Account Type</h2>
           <div className="space-y-4">
-            {Object.entries(stats.byIndustry).map(([industry, data]) => (
-              <div key={industry} className="flex justify-between items-center">
+            {Object.entries(stats.byType).map(([type, data]) => (
+              <div key={type} className="flex justify-between items-center">
                 <div>
-                  <p className="font-medium">{industry || 'Unspecified'}</p>
-                  <p className="text-sm text-muted-foreground">{data.count} sponsors</p>
+                  <p className="font-medium">{type}</p>
+                  <p className="text-sm text-muted-foreground">{data.count} transactions</p>
                 </div>
                 <p className="font-medium">LKR {data.amount.toLocaleString()}</p>
               </div>
@@ -260,16 +268,36 @@ export default function SponsorsReportPage() {
       </div>
 
       <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Sponsorship Status Distribution</h2>
-        <div className="grid grid-cols-4 gap-4">
-          {Object.entries(stats.byStatus).map(([status, count]) => (
-            <div key={status} className="text-center p-4 bg-muted rounded-lg">
-              <p className="font-medium">{status}</p>
-              <p className="text-2xl font-bold">{count}</p>
-              <p className="text-sm text-muted-foreground">
-                {Math.round((count / stats.totalSponsors) * 100)}%
-              </p>
-            </div>
+        <h2 className="text-lg font-semibold mb-4">Sponsorship Transactions</h2>
+        <div className="space-y-4">
+          {transactions.map(transaction => (
+            <Card key={transaction.id} className="p-4 border">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-xl font-semibold">{transaction.receivedFrom}</h3>
+                  <p className="text-muted-foreground">{transaction.description}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-primary">
+                    LKR {transaction.amount.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(transaction.date).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Category</p>
+                  <p className="font-medium">{transaction.category}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Account Type</p>
+                  <p className="font-medium">{transaction.accountType}</p>
+                </div>
+              </div>
+            </Card>
           ))}
         </div>
       </Card>

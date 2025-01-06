@@ -26,6 +26,7 @@ interface CategoryTransaction {
   description: string;
   budgeted: boolean;
   variance?: number;
+  status: 'Completed' | 'In Progress' | 'Not Started' | 'Abandoned' | 'Completed';
 }
 
 export default function CategoryAnalysisPage() {
@@ -36,25 +37,54 @@ export default function CategoryAnalysisPage() {
   useEffect(() => {
     const fetchCategoryData = async () => {
       try {
-        // Fetch categories
+        // Fetch categories first
         const categoriesRef = collection(db, 'categories');
         const categoriesSnapshot = await getDocs(categoriesRef);
         const categoriesData = categoriesSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         })) as Category[];
+        console.log('Categories:', categoriesData);
         setCategories(categoriesData);
 
         // Fetch transactions
         const transactionsRef = collection(db, 'transactions');
         const transactionsSnapshot = await getDocs(transactionsRef);
-        const transactionsData = transactionsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as CategoryTransaction[];
-        setTransactions(transactionsData);
+        const transactionsData = transactionsSnapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log('Transaction:', data);
+
+          // Find matching category by name
+          const matchingCategory = categoriesData.find(cat => 
+            cat.name.toLowerCase() === (data.category || '').toLowerCase()
+          );
+
+          return {
+            id: doc.id,
+            categoryId: matchingCategory?.id || '',
+            type: data.type || 'Expense',
+            amount: parseFloat(data.amount) || 0,
+            date: data.date || new Date().toISOString(),
+            description: data.description || '',
+            budgeted: false,
+            variance: 0,
+            status: data.status || 'Completed'
+          } as CategoryTransaction;
+        });
+
+        // Only keep transactions with valid categories and amounts
+        const validTransactions = transactionsData.filter(t => {
+          const isValid = Boolean(t.categoryId) && !isNaN(t.amount) && t.amount > 0;
+          if (!isValid) {
+            console.log('Filtered out transaction:', t);
+          }
+          return isValid;
+        });
+
+        console.log('Valid Transactions:', validTransactions);
+        setTransactions(validTransactions);
       } catch (error) {
-        console.error('Error fetching category data:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
@@ -174,11 +204,14 @@ export default function CategoryAnalysisPage() {
       key: 'totalAmount', 
       label: 'Total Amount', 
       sortable: true,
-      render: (category: Category) => formatAmount(
-        transactions
-          .filter(t => t.categoryId === category.id)
-          .reduce((sum, t) => sum + t.amount, 0)
-      )
+      render: (category: Category) => {
+        const categoryTransactions = transactions.filter(t => 
+          t.categoryId === category.id && 
+          t.status === 'Completed'
+        );
+        const total = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
+        return formatAmount(total);
+      }
     },
     { 
       key: 'budgetLimit', 
@@ -192,12 +225,14 @@ export default function CategoryAnalysisPage() {
       label: 'Variance', 
       sortable: true,
       render: (category: Category) => {
-        const actual = transactions
-          .filter(t => t.categoryId === category.id)
-          .reduce((sum, t) => sum + t.amount, 0);
-        const variance = category.budgetLimit 
-          ? actual - category.budgetLimit
-          : 0;
+        const categoryTransactions = transactions.filter(t => 
+          t.categoryId === category.id && 
+          t.status === 'Completed'
+        );
+        const actual = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const budgetLimit = category.budgetLimit || 0;
+        const variance = budgetLimit > 0 ? actual - budgetLimit : 0;
+        
         return (
           <div className={`px-2 py-1 rounded-full text-xs ${
             variance > 0 ? 'bg-red-100 text-red-800' :
@@ -225,8 +260,13 @@ export default function CategoryAnalysisPage() {
       key: 'transactionCount', 
       label: 'Transactions', 
       sortable: true,
-      render: (category: Category) =>
-        transactions.filter(t => t.categoryId === category.id).length
+      render: (category: Category) => {
+        const count = transactions.filter(t => 
+          t.categoryId === category.id && 
+          t.status === 'Completed'
+        ).length;
+        return count;
+      }
     },
     { 
       key: 'tags', 

@@ -12,6 +12,7 @@ import { DataTable } from '@/components/ui/data-table';
 import { TransactionForm } from '@/components/forms/transaction-form';
 import { handleTransaction } from '@/lib/transactions';
 import { useToast } from '@/components/ui/use-toast';
+import { Label } from '@/components/ui/label';
 
 interface AccountType {
   id: string;
@@ -75,6 +76,11 @@ export default function TransactionsPage() {
   useEffect(() => {
     fetchAccounts();
   }, []);
+
+  // Sort accounts alphabetically
+  const sortedAccounts = [...accounts].sort((a, b) => 
+    a.name.localeCompare(b.name)
+  );
 
   // Get all transactions from all accounts and add account details
   const allTransactions = accounts.flatMap(account => 
@@ -224,17 +230,19 @@ export default function TransactionsPage() {
         {accounts.length > 0 ? (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Select Account</label>
+              <Label htmlFor="account">Select Account</Label>
               <select
-                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg"
+                id="account"
+                className="w-full p-2 border rounded"
+                value={selectedAccount?.id || ''}
                 onChange={(e) => {
                   const account = accounts.find(a => a.id === e.target.value);
                   setSelectedAccount(account || null);
                 }}
-                value={selectedAccount?.id || ''}
+                required
               >
-                <option value="">Select an account</option>
-                {accounts.map(account => (
+                <option value="">Select Account</option>
+                {sortedAccounts.map(account => (
                   <option key={account.id} value={account.id}>
                     {account.name} ({formatLKR(account.balance || 0)})
                   </option>
@@ -245,29 +253,21 @@ export default function TransactionsPage() {
             {selectedAccount && (
               <TransactionForm
                 onSubmit={async (data) => {
-                  await handleTransaction(
-                    selectedAccount.id,
-                    data,
-                    () => {
-                      toast({
-                        title: "Transaction Successful",
-                        description: `${data.type === 'transfer' 
-                          ? `Successfully transferred ${formatLKR(data.amount)}`
-                          : `${data.type === 'credit' ? 'Added' : 'Subtracted'} ${formatLKR(data.amount)}`
-                        }`,
-                      });
+                  try {
+                    await handleTransaction(selectedAccount.id, data, () => {
                       setIsTransactionModalOpen(false);
                       setSelectedAccount(null);
                       fetchAccounts();
-                    },
-                    (error) => {
+                    }, (error) => {
                       toast({
-                        title: "Transaction Failed",
+                        title: "Error",
                         description: error,
                         variant: "destructive",
                       });
-                    }
-                  );
+                    });
+                  } catch (error) {
+                    console.error('Error handling transaction:', error);
+                  }
                 }}
                 onClose={() => {
                   setIsTransactionModalOpen(false);
@@ -275,18 +275,17 @@ export default function TransactionsPage() {
                 }}
                 accounts={accounts}
                 selectedAccountId={selectedAccount.id}
-                initialType="credit"
               />
             )}
           </div>
         ) : (
           <div className="p-4 text-center">
             <p className="text-sm text-gray-600 mb-4">
-              Please create an account first in the Bank Accounts section.
+              Please create an account first in the Settings page.
             </p>
             <Button 
               onClick={() => setIsTransactionModalOpen(false)} 
-              className="bg-blue-500 hover:bg-blue-600 text-white"
+              variant="outline"
             >
               Close
             </Button>

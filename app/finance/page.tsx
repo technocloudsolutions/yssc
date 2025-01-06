@@ -49,10 +49,9 @@ interface Transaction {
 interface AccountType {
   id: string;
   name: string;
-  type: string;
-  description: string;
-  status: string;
-  createdAt: string;
+  description?: string;
+  type: 'Income' | 'Expense' | 'Bank' | 'Cash';
+  status: 'Active' | 'Inactive';
   balance?: number;
   bankDetails?: {
     accountNumber: string;
@@ -195,7 +194,7 @@ export default function FinancePage() {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const { items: transactionItems, formatAmount } = useDataOperations('transactions' as Collection);
-  const [accountTypes, setAccountTypes] = useState<string[]>([]);
+  const [accountTypes, setAccountTypes] = useState<AccountType[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -281,34 +280,60 @@ export default function FinancePage() {
 
   const fetchAccountTypes = async () => {
     try {
-      const accountTypesRef = collection(db, 'accountTypes');
+      console.log('Fetching account types...');
+      const accountsRef = collection(db, 'accountTypes');
+      const snapshot = await getDocs(accountsRef);
+      const fetchedAccounts = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name,
+          type: data.type || (data.bankDetails ? 'Bank' : 'Cash'),
+          description: data.description,
+          status: data.status,
+          balance: data.balance,
+          bankDetails: data.bankDetails
+        };
+      }) as AccountType[];
+      
+      console.log('Fetched accounts:', fetchedAccounts);
+      
+      // Filter accounts based on transaction type
+      const activeAccounts = fetchedAccounts.filter(account => {
+        const isActive = account.status === 'Active';
+        const isBank = account.type === 'Bank';
+        const isCash = account.type === 'Cash';
+        const isExpense = account.type === 'Expense';
+        const isIncome = account.type === 'Income';
 
-      if (formData.transactionType === 'Expense') {
-        // For expenses, get both bank accounts and expense types
-        const bankQuery = query(accountTypesRef, where('accountType', '==', 'Bank'));
-        const bankSnapshot = await getDocs(bankQuery);
-        const bankAccounts = bankSnapshot.docs.map(doc => ({
-          name: doc.data().name,
-          type: doc.data().accountType
-        }));
+        if (formData.transactionType === 'Expense') {
+          return isActive && (isExpense || isBank || isCash);
+        } else {
+          return isActive && (isIncome || isBank || isCash);
+        }
+      });
 
-        // Filter out any undefined or null values and get just the names
-        const validBankAccounts = bankAccounts
-          .filter(account => account.name)
-          .map(account => account.name);
-
-        // Set account types including both bank accounts and expense types
-        setAccountTypes([...validBankAccounts, ...Array.from(EXPENSE_ACCOUNT_TYPES)]);
-      } else {
-        // For income, keep existing behavior
-        const snapshot = await getDocs(accountTypesRef);
-        const accountTypeNames = snapshot.docs.map(doc => doc.data().name);
-        setAccountTypes(accountTypeNames);
-      }
+      console.log('Active accounts:', activeAccounts);
+      setAccountTypes(activeAccounts);
     } catch (error) {
       console.error('Error fetching account types:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch account types",
+        variant: "destructive",
+      });
     }
   };
+
+  // Add effect to log account types when they change
+  useEffect(() => {
+    console.log('Current accountTypes:', accountTypes);
+    console.log('Current transaction type:', formData.transactionType);
+    const filteredAccounts = accountTypes.filter(
+      account => account.status === 'Active' && account.type === formData.transactionType
+    );
+    console.log('Filtered accounts for', formData.transactionType, ':', filteredAccounts);
+  }, [accountTypes, formData.transactionType]);
 
   // Make sure to refresh when transaction type changes
   useEffect(() => {
@@ -1067,18 +1092,38 @@ export default function FinancePage() {
                   <select
                     className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
                     value={formData.accountType}
-                    onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
+                    onChange={(e) => {
+                      console.log('Selected account type:', e.target.value);
+                      setFormData({ ...formData, accountType: e.target.value });
+                    }}
                     required
                   >
                     <option value="">Select Account Type</option>
-                    {formData.transactionType === 'Expense' 
-                      ? EXPENSE_ACCOUNT_TYPES.map((type) => (
-                          <option key={type} value={type}>{type}</option>
-                        ))
-                      : accountTypes.map((type) => (
-                          <option key={type} value={type}>{type}</option>
-                        ))
-                    }
+                    {(() => {
+                      const filteredAccounts = accountTypes
+                        .filter(account => {
+                          const isActive = account.status === 'Active';
+                          const isBank = account.type === 'Bank';
+                          const isCash = account.type === 'Cash';
+                          const matchesType = formData.transactionType === 'Expense' 
+                            ? account.type === 'Expense'
+                            : account.type === 'Income';
+                          const shouldShow = isActive && (matchesType || isBank || isCash);
+                          console.log('Account:', account.name, 'shouldShow:', shouldShow, {
+                            isActive,
+                            isBank,
+                            isCash,
+                            matchesType,
+                            type: account.type,
+                            transactionType: formData.transactionType
+                          });
+                          return shouldShow;
+                        });
+                      console.log('Filtered accounts:', filteredAccounts);
+                      return filteredAccounts.map((account) => (
+                            <option key={account.id} value={account.name}>{account.name}</option>
+                      ));
+                    })()}
                   </select>
                 </div>
 

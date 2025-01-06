@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DataTable } from '@/components/ui/data-table';
 import { Modal } from '@/components/ui/modal';
 import { DepartmentForm } from '@/components/forms/department-form';
@@ -11,8 +11,11 @@ import { useDataOperations, Collection } from '@/hooks/useDataOperations';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { initializeSettings } from '@/lib/initializeSettings';
 import { Button } from '@/components/ui/button';
-import { Plus, Building2, Users, Wallet, FolderTree, Settings } from 'lucide-react';
+import { Plus, Building2, Users, Wallet, FolderTree, Settings, Award } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+import { Input } from '@/components/ui/input';
 
 interface Department {
   id: string;
@@ -42,6 +45,11 @@ interface Category {
   description?: string;
   parentId?: string;
   status: 'Active' | 'Inactive';
+}
+
+interface SponsorshipType {
+  id: string;
+  name: string;
 }
 
 const mockCategories: Category[] = [
@@ -76,6 +84,11 @@ export default function SettingsPage() {
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [editingAccountType, setEditingAccountType] = useState<AccountType | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [isSponsorshipTypeModalOpen, setIsSponsorshipTypeModalOpen] = useState(false);
+  const [editingSponsorshipType, setEditingSponsorshipType] = useState<SponsorshipType | null>(null);
+  const [sponsorshipTypeFormData, setSponsorshipTypeFormData] = useState({
+    name: '',
+  });
 
   const { 
     items: departments, 
@@ -108,6 +121,100 @@ export default function SettingsPage() {
     deleteItem: deleteCategory,
     refreshItems: fetchCategories
   } = useDataOperations('categories' as Collection);
+
+  const { 
+    items: sponsorshipTypesList, 
+    addItem: addSponsorshipType, 
+    updateItem: updateSponsorshipType, 
+    deleteItem: deleteSponsorshipType,
+    refreshItems: fetchSponsorshipTypes
+  } = useDataOperations('sponsorshipTypes' as Collection);
+
+  useEffect(() => {
+    // Initial data fetch for all tabs
+    fetchDepartments();
+    fetchRoles();
+    fetchAccountTypes();
+    fetchCategories();
+    fetchSponsorshipTypes();
+  }, []);
+
+  const handleAddSponsorshipType = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sponsorshipTypeFormData.name) {
+      alert('Please enter sponsorship type name');
+      return;
+    }
+
+    try {
+      if (editingSponsorshipType) {
+        await updateSponsorshipType(editingSponsorshipType.id, sponsorshipTypeFormData);
+      } else {
+        await addSponsorshipType(sponsorshipTypeFormData);
+      }
+      setIsSponsorshipTypeModalOpen(false);
+      resetSponsorshipTypeForm();
+    } catch (error) {
+      console.error('Error saving sponsorship type:', error);
+    }
+  };
+
+  const handleDeleteSponsorshipType = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this sponsorship type?')) return;
+    try {
+      await deleteSponsorshipType(id);
+    } catch (error) {
+      console.error('Error deleting sponsorship type:', error);
+    }
+  };
+
+  const resetSponsorshipTypeForm = () => {
+    setSponsorshipTypeFormData({
+      name: '',
+    });
+    setEditingSponsorshipType(null);
+  };
+
+  const handleEditSponsorshipType = (type: SponsorshipType) => {
+    setEditingSponsorshipType(type);
+    setSponsorshipTypeFormData({
+      name: type.name,
+    });
+    setIsSponsorshipTypeModalOpen(true);
+  };
+
+  const sponsorshipTypeColumns = [
+    {
+      key: 'name',
+      label: 'Name',
+      sortable: true,
+      render: (row: SponsorshipType) => row.name
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      render: (row: SponsorshipType) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleEditSponsorshipType(row)}
+          >
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-red-600 hover:text-red-700"
+            onClick={() => handleDeleteSponsorshipType(row.id)}
+          >
+            Delete
+          </Button>
+        </div>
+      )
+    }
+  ];
 
   const handleAddDepartment = async (data: any) => {
     try {
@@ -382,38 +489,36 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <div className="flex gap-2">
-          <Button 
-            onClick={handleInitialize}
-            variant="outline"
-            className="flex items-center gap-2 text-yellow-600 hover:text-yellow-700 border-yellow-600 hover:border-yellow-700 hover:bg-yellow-50 dark:text-yellow-500 dark:hover:text-yellow-400"
-          >
-            <Settings className="h-4 w-4" />
-            Initialize Default Settings
-          </Button>
-        </div>
+    <div className="p-8 space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Settings</h1>
       </div>
-      
-      <Tabs defaultValue="departments" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 mb-8">
-          <TabsTrigger value="departments" className="flex items-center gap-2 data-[state=active]:bg-yellow-500 data-[state=active]:text-white">
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-6 w-full">
+          <TabsTrigger value="departments" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             Departments
           </TabsTrigger>
-          <TabsTrigger value="roles" className="flex items-center gap-2 data-[state=active]:bg-yellow-500 data-[state=active]:text-white">
+          <TabsTrigger value="roles" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Roles
           </TabsTrigger>
-          <TabsTrigger value="accountTypes" className="flex items-center gap-2 data-[state=active]:bg-yellow-500 data-[state=active]:text-white">
+          <TabsTrigger value="accountTypes" className="flex items-center gap-2">
             <Wallet className="h-4 w-4" />
             Account Types
           </TabsTrigger>
-          <TabsTrigger value="categories" className="flex items-center gap-2 data-[state=active]:bg-yellow-500 data-[state=active]:text-white">
+          <TabsTrigger value="categories" className="flex items-center gap-2">
             <FolderTree className="h-4 w-4" />
             Categories
+          </TabsTrigger>
+          <TabsTrigger value="sponsorshipTypes" className="flex items-center gap-2">
+            <Award className="h-4 w-4" />
+            Sponsorship Types
+          </TabsTrigger>
+          <TabsTrigger value="initialize" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Initialize
           </TabsTrigger>
         </TabsList>
 
@@ -532,6 +637,55 @@ export default function SettingsPage() {
             />
           </Card>
         </TabsContent>
+
+        <TabsContent value="sponsorshipTypes">
+          <Card className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-semibold">Sponsorship Types Management</h2>
+                <p className="text-sm text-muted-foreground">
+                  Manage sponsorship types for sponsors
+                </p>
+              </div>
+              <Button 
+                onClick={() => setIsSponsorshipTypeModalOpen(true)}
+                className="bg-yellow-500 hover:bg-yellow-600 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Type
+              </Button>
+            </div>
+            <DataTable
+              columns={sponsorshipTypeColumns}
+              data={sponsorshipTypesList}
+              onEdit={(type) => {
+                setEditingSponsorshipType(type);
+                setIsSponsorshipTypeModalOpen(true);
+              }}
+              onDelete={handleDeleteSponsorshipType}
+            />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="initialize">
+          <Card className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-semibold">Initialize Default Settings</h2>
+                <p className="text-sm text-muted-foreground">
+                  Initialize all settings to default values
+                </p>
+              </div>
+              <Button 
+                onClick={handleInitialize}
+                className="bg-yellow-500 hover:bg-yellow-600 text-white"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Initialize
+              </Button>
+            </div>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <Modal
@@ -589,6 +743,42 @@ export default function SettingsPage() {
           onSubmit={editingCategory ? handleEditCategory : handleAddCategory}
           initialData={editingCategory}
         />
+      </Modal>
+
+      <Modal
+        isOpen={isSponsorshipTypeModalOpen}
+        onClose={() => {
+          setIsSponsorshipTypeModalOpen(false);
+          resetSponsorshipTypeForm();
+        }}
+        title={editingSponsorshipType ? 'Edit Sponsorship Type' : 'Add Sponsorship Type'}
+      >
+        <form onSubmit={handleAddSponsorshipType} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Name</label>
+            <Input
+              value={sponsorshipTypeFormData.name}
+              onChange={(e) => setSponsorshipTypeFormData({ ...sponsorshipTypeFormData, name: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsSponsorshipTypeModalOpen(false);
+                resetSponsorshipTypeForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit">
+              {editingSponsorshipType ? 'Update' : 'Create'} Type
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );
