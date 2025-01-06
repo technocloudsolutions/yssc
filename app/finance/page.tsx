@@ -275,20 +275,8 @@ export default function FinancePage() {
       
       console.log('Fetched accounts:', fetchedAccounts);
       
-      // Filter accounts based on transaction type
-      const activeAccounts = fetchedAccounts.filter(account => {
-        const isActive = account.status === 'Active';
-        const isBank = account.type === 'Bank';
-        const isCash = account.type === 'Cash';
-        const isExpense = account.type === 'Expense';
-        const isIncome = account.type === 'Income';
-
-        if (formData.transactionType === 'Expense') {
-          return isActive && (isExpense || isBank || isCash);
-        } else {
-          return isActive && (isIncome || isBank || isCash);
-        }
-      });
+      // Only filter by active status
+      const activeAccounts = fetchedAccounts.filter(account => account.status === 'Active');
 
       console.log('Active accounts:', activeAccounts);
       setAccountTypes(activeAccounts);
@@ -957,31 +945,14 @@ export default function FinancePage() {
                     required
                   >
                     <option value="">Select Account Type</option>
-                    {(() => {
-                      const filteredAccounts = accountTypes
-                        .filter(account => {
-                          const isActive = account.status === 'Active';
-                          const isBank = account.type === 'Bank';
-                          const isCash = account.type === 'Cash';
-                          const matchesType = formData.transactionType === 'Expense' 
-                            ? account.type === 'Expense'
-                            : account.type === 'Income';
-                          const shouldShow = isActive && (matchesType || isBank || isCash);
-                          console.log('Account:', account.name, 'shouldShow:', shouldShow, {
-                            isActive,
-                            isBank,
-                            isCash,
-                            matchesType,
-                            type: account.type,
-                            transactionType: formData.transactionType
-                          });
-                          return shouldShow;
-                        });
-                      console.log('Filtered accounts:', filteredAccounts);
-                      return filteredAccounts.map((account) => (
-                            <option key={account.id} value={account.name}>{account.name}</option>
-                      ));
-                    })()}
+                    {accountTypes
+                      .filter(account => account.status === 'Active')
+                      .map((account) => (
+                        <option key={account.id} value={account.name}>
+                          {account.name}
+                        </option>
+                      ))
+                    }
                   </select>
                 </div>
 
