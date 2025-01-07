@@ -646,7 +646,15 @@ export default function FinancePage() {
   const columns = [
     { key: 'date', label: 'Date', sortable: true },
     { key: 'accountType', label: 'Account Type', sortable: true },
-    { key: 'category', label: 'Category', sortable: true },
+    { 
+      key: 'category', 
+      label: 'Category', 
+      sortable: true,
+      render: (transaction: Transaction) => {
+        const category = categories.find(c => c.id === transaction.category);
+        return category ? category.name : transaction.category;
+      }
+    },
     { key: 'type', label: 'Type', sortable: true },
     { 
       key: 'amount', 
@@ -659,6 +667,20 @@ export default function FinancePage() {
       )
     },
     { key: 'description', label: 'Description', sortable: true },
+    { 
+      key: 'payee', 
+      label: 'Payee', 
+      sortable: true,
+      render: (transaction: Transaction) => {
+        if (transaction.type !== 'Expense') return '-';
+        return transaction.payee ? (
+          <div className="text-sm">
+            <div>{transaction.payee}</div>
+            <div className="text-muted-foreground">{transaction.payeeType}</div>
+          </div>
+        ) : '-';
+      }
+    },
     { 
       key: 'receivedFrom', 
       label: 'Received From', 
@@ -793,6 +815,39 @@ export default function FinancePage() {
     } catch (error) {
       console.error('Error handling transaction:', error);
       throw error;
+    }
+  };
+
+  const handleReceiptSubmit = async (receiptData: any) => {
+    if (!selectedTransaction) return;
+
+    try {
+      // Update the transaction with receipt information
+      const transactionRef = doc(db, 'transactions', selectedTransaction.id);
+      await updateDoc(transactionRef, {
+        receiptIssued: true,
+        receiptNo: receiptData.receiptNo,
+        updatedAt: new Date().toISOString()
+      });
+
+      // Refresh the transactions list
+      fetchTransactions();
+
+      // Close the receipt form
+      setShowReceiptForm(false);
+      setSelectedTransaction(null);
+
+      toast({
+        title: "Success",
+        description: "Receipt issued successfully",
+      });
+    } catch (error) {
+      console.error('Error issuing receipt:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to issue receipt. Please try again.",
+      });
     }
   };
 
@@ -1251,6 +1306,20 @@ export default function FinancePage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={showReceiptForm}
+        onClose={() => {
+          setShowReceiptForm(false);
+          setSelectedTransaction(null);
+        }}
+        title="Issue Receipt"
+      >
+        <ReceiptForm
+          onSubmit={handleReceiptSubmit}
+          transactionData={selectedTransaction}
+        />
       </Modal>
 
       <FinanceDetails

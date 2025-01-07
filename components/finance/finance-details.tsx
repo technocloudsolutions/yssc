@@ -2,6 +2,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { formatLKR } from "@/lib/utils";
 import { FileText, Link2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
+interface Category {
+  id: string;
+  name: string;
+  type: string;
+  status: 'Active' | 'Inactive';
+}
 
 interface FinanceDetailsProps {
   isOpen: boolean;
@@ -10,7 +20,36 @@ interface FinanceDetailsProps {
 }
 
 export function FinanceDetails({ isOpen, onClose, record }: FinanceDetailsProps) {
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const categoriesRef = collection(db, 'categories');
+        const snapshot = await getDocs(categoriesRef);
+        const fetchedCategories = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name || '',
+            type: data.type || '',
+            status: data.status || 'Inactive'
+          } as Category;
+        });
+        setCategories(fetchedCategories);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+
+    if (isOpen) {
+      fetchCategories();
+    }
+  }, [isOpen]);
+
   if (!record) return null;
+
+  const categoryName = categories.find(c => c.id === record?.category)?.name || record?.category;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -34,7 +73,7 @@ export function FinanceDetails({ isOpen, onClose, record }: FinanceDetailsProps)
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="font-medium text-sm text-muted-foreground">Category</label>
-              <p>{record?.category}</p>
+              <p>{categoryName}</p>
             </div>
             <div>
               <label className="font-medium text-sm text-muted-foreground">Type</label>
@@ -67,6 +106,19 @@ export function FinanceDetails({ isOpen, onClose, record }: FinanceDetailsProps)
               <div>
                 <label className="font-medium text-sm text-muted-foreground">Received From Type</label>
                 <p>{record?.receivedFromType}</p>
+              </div>
+            </div>
+          )}
+          
+          {record?.type === 'Expense' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="font-medium text-sm text-muted-foreground">Payee</label>
+                <p>{record?.payee || '-'}</p>
+              </div>
+              <div>
+                <label className="font-medium text-sm text-muted-foreground">Payee Type</label>
+                <p>{record?.payeeType || '-'}</p>
               </div>
             </div>
           )}

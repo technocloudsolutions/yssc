@@ -38,6 +38,7 @@ export default function UsersPage() {
     role: '',
     status: 'active' as const,
   });
+  const [showInitialAdminButton, setShowInitialAdminButton] = useState(true);
 
   useEffect(() => {
     if (!user) {
@@ -56,6 +57,7 @@ export default function UsersPage() {
         ...doc.data()
       })) as User[];
       setUsers(usersData);
+      setShowInitialAdminButton(usersData.length === 0);
     } catch (error) {
       console.error('Error fetching users:', error);
     }
@@ -214,7 +216,9 @@ export default function UsersPage() {
         </Table>
       </Card>
 
-      <Button onClick={createInitialAdmin}>Create Initial Admin</Button>
+      {showInitialAdminButton && (
+        <Button onClick={createInitialAdmin}>Create Initial Admin</Button>
+      )}
     </div>
   );
 } 
