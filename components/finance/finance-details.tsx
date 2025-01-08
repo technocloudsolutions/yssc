@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatLKR } from "@/lib/utils";
-import { FileText, Link2 } from "lucide-react";
+import { FileText, Link2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -17,9 +17,10 @@ interface FinanceDetailsProps {
   isOpen: boolean;
   onClose: () => void;
   record: any;
+  onDelete: (id: string) => void;
 }
 
-export function FinanceDetails({ isOpen, onClose, record }: FinanceDetailsProps) {
+export function FinanceDetails({ isOpen, onClose, record, onDelete }: FinanceDetailsProps) {
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -159,7 +160,18 @@ export function FinanceDetails({ isOpen, onClose, record }: FinanceDetailsProps)
           )}
         </div>
         
-        <div className="flex justify-end">
+        <div className="flex justify-between">
+          <Button 
+            variant="destructive" 
+            onClick={() => {
+              onDelete(record.id);
+              onClose();
+            }}
+            className="flex items-center gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </Button>
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>

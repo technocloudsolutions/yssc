@@ -205,22 +205,39 @@ export default function TransactionsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this transaction?')) {
-      try {
-        await deleteDoc(doc(db, 'transactions', id));
-        fetchTransactions();
-        toast({
-          title: "Success",
-          description: "Transaction deleted successfully"
-        });
-      } catch (error) {
-        console.error('Error deleting transaction:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete transaction",
-          variant: "destructive"
-        });
+    if (!confirm('Are you sure you want to delete this transaction?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const transactionRef = doc(db, 'transactions', id);
+      
+      // Get the transaction data before deleting
+      const transactionDoc = await getDoc(transactionRef);
+      if (!transactionDoc.exists()) {
+        throw new Error('Transaction not found');
       }
+
+      // Delete the transaction
+      await deleteDoc(transactionRef);
+      
+      // Refresh the transactions list
+      await fetchTransactions();
+      
+      toast({
+        title: "Success",
+        description: "Transaction deleted successfully"
+      });
+    } catch (error: any) {
+      console.error('Error deleting transaction:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete transaction. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 

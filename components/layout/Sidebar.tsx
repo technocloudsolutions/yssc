@@ -41,26 +41,6 @@ const Sidebar = () => {
 
   const reportSubItems = [
     {
-      title: "Player Analytics",
-      icon: UserCircle,
-      href: "/advanced-reports/players"
-    },
-    {
-      title: "Staff Reports",
-      icon: Users,
-      href: "/advanced-reports/staff"
-    },
-    {
-      title: "Sponsors Overview",
-      icon: Building2,
-      href: "/advanced-reports/sponsors"
-    },
-    {
-      title: "Financial Overview",
-      icon: PieChart,
-      href: "/advanced-reports/finance"
-    },
-    {
       title: "Income Analysis",
       icon: TrendingUp,
       href: "/advanced-reports/income"
@@ -71,14 +51,24 @@ const Sidebar = () => {
       href: "/advanced-reports/expenses"
     },
     {
-      title: "Category Analysis",
-      icon: BarChart3,
-      href: "/advanced-reports/categories"
+      title: "Player Finance",
+      icon: Users,
+      href: "/advanced-reports/player-finance"
     },
     {
-      title: "Bank Accounts",
+      title: "Staff Finance",
+      icon: UserCog,
+      href: "/advanced-reports/staff"
+    },
+    {
+      title: "Sponsor Finance",
       icon: Building2,
-      href: "/advanced-reports/bank-accounts"
+      href: "/advanced-reports/sponsor"
+    },
+    {
+      title: "Bank Account",
+      icon: Building2,
+      href: "/advanced-reports/bank-account"
     }
   ];
 

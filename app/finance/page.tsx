@@ -6,7 +6,7 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, runTransaction, increment, getDoc, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, runTransaction, increment, getDoc, writeBatch, arrayUnion } from 'firebase/firestore';
 import { Card } from '@/components/ui/card';
 import { 
   DollarSign, TrendingUp, TrendingDown, PiggyBank, FileText, 
@@ -38,7 +38,8 @@ interface Transaction {
   updatedAt?: string;
   receiptIssued: boolean;
   receiptNo: string;
-  paymentMethod?: string;
+  paymentMethod: string;
+  bankAccount?: string;
   payee?: string;
   payeeType?: string;
   receivedFrom?: string;
@@ -196,7 +197,7 @@ interface NameSuggestion {
 export default function FinancePage() {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const { items: transactionItems, formatAmount } = useDataOperations('transactions' as Collection);
+  const { items: transactionItems, formatAmount, deleteItem } = useDataOperations('transactions' as Collection);
   const [accountTypes, setAccountTypes] = useState<AccountType[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -235,6 +236,7 @@ export default function FinancePage() {
 
   useEffect(() => {
     if (user) {
+      console.log('User authenticated, fetching transactions...');
       fetchTransactions();
       fetchCategories();
       fetchAccountTypes();
@@ -249,9 +251,15 @@ export default function FinancePage() {
         id: doc.id,
         ...doc.data()
       })) as Transaction[];
+      console.log('Fetched transactions:', transactionsData);
       setTransactions(transactionsData);
     } catch (error) {
       console.error('Error fetching transactions:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch transactions"
+      });
     }
   };
 
@@ -482,77 +490,57 @@ export default function FinancePage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this transaction?')) {
-      try {
-        // Get the transaction details before deleting
-        const transactionRef = doc(db, 'transactions', id);
-        const transactionDoc = await getDoc(transactionRef);
-        const transactionData = transactionDoc.data();
+    console.log('Delete triggered for ID:', id);
+    
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to perform this action"
+      });
+      return;
+    }
 
-        if (!transactionData) {
-          throw new Error('Transaction not found');
-        }
+    try {
+      // Query for the document with matching id field
+      const transactionsRef = collection(db, 'transactions');
+      const q = query(transactionsRef, where('id', '==', id));
+      const querySnapshot = await getDocs(q);
 
-        // Only process balance updates if the transaction was completed
-        if (transactionData.status === 'Completed') {
-          // If it was a bank transfer, update the bank account balance
-          if (transactionData.paymentMethod === 'Bank Transfer' && transactionData.bankAccount) {
-            const bankAccountRef = doc(db, 'accountTypes', transactionData.bankAccount);
-            await runTransaction(db, async (transaction) => {
-              const bankAccountDoc = await transaction.get(bankAccountRef);
-              if (!bankAccountDoc.exists()) {
-                throw new Error('Bank account not found');
-              }
-
-              const currentBalance = bankAccountDoc.data().balance || 0;
-              // Reverse the transaction effect: add for expense, subtract for income
-              const newBalance = transactionData.transactionType === 'Expense' 
-                ? currentBalance + Number(transactionData.amount)
-                : currentBalance - Number(transactionData.amount);
-
-              transaction.update(bankAccountRef, {
-                balance: newBalance,
-                lastUpdated: new Date().toISOString()
-              });
-            });
-          }
-
-          // Update account type balance
-          const accountTypesRef = collection(db, 'accountTypes');
-          const accountQuery = query(accountTypesRef, where('name', '==', transactionData.accountType));
-          const accountSnapshot = await getDocs(accountQuery);
-
-          if (!accountSnapshot.empty) {
-            const account = accountSnapshot.docs[0];
-            const accountRef = doc(db, 'accountTypes', account.id);
-            const currentBalance = account.data().balance || 0;
-            
-            // Reverse the balance change
-            const balanceChange = transactionData.transactionType === 'Income' 
-              ? -Number(transactionData.amount)
-              : Number(transactionData.amount);
-
-            await updateDoc(accountRef, {
-              balance: currentBalance + balanceChange,
-              lastUpdated: new Date().toISOString()
-            });
-          }
-        }
-
-        // Delete the transaction
-        await deleteDoc(transactionRef);
-        fetchTransactions();
+      if (querySnapshot.empty) {
         toast({
-          title: "Success",
-          description: "Transaction deleted successfully"
-        });
-      } catch (error) {
-        console.error('Error deleting transaction:', error);
-        toast({
+          variant: "destructive",
           title: "Error",
-          description: "Failed to delete transaction. Please try again."
+          description: "Transaction not found"
         });
+        return;
       }
+
+      // Get the actual Firebase document ID
+      const docId = querySnapshot.docs[0].id;
+      console.log('Found document with Firebase ID:', docId);
+
+      // Delete the transaction using the Firebase document ID
+      await deleteDoc(doc(db, 'transactions', docId));
+      console.log('Document deleted successfully');
+      
+      // Refresh the transactions list
+      await fetchTransactions();
+      
+      // Close the dialog if it's open
+      setIsViewDialogOpen(false);
+      
+      toast({
+        title: "Success",
+        description: "Transaction deleted successfully"
+      });
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete transaction. Please try again."
+      });
     }
   };
 
@@ -759,10 +747,18 @@ export default function FinancePage() {
           )}
           <Button
             size="sm"
-            variant="outline"
-            className="text-red-500 hover:text-red-700"
-            onClick={() => handleDelete(transaction.id)}
+            variant="destructive"
+            onClick={() => {
+              console.log('Transaction to delete:', transaction);
+              if (window.confirm('Are you sure you want to delete this transaction?')) {
+                const docId = transaction.id.toString();
+                console.log('Deleting document with ID:', docId);
+                handleDelete(docId);
+              }
+            }}
+            className="flex items-center gap-1"
           >
+            <Trash2 className="h-4 w-4" />
             Delete
           </Button>
         </div>
@@ -809,7 +805,11 @@ export default function FinancePage() {
 
       // Add transaction
       const transactionRef = doc(collection(db, 'transactions'));
-      batch.set(transactionRef, transactionData);
+      const { id, ...transactionDataWithoutId } = transactionData; // Remove the id field
+      batch.set(transactionRef, {
+        ...transactionDataWithoutId,
+        id: transactionRef.id // Use Firebase's auto-generated ID
+      });
 
       await batch.commit();
     } catch (error) {
@@ -1330,6 +1330,7 @@ export default function FinancePage() {
           receivedFrom: selectedRecord?.receivedFrom,
           receivedFromType: selectedRecord?.receivedFromType
         }}
+        onDelete={handleDelete}
       />
     </div>
   );
