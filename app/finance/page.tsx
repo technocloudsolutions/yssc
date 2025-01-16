@@ -1,27 +1,62 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { DataTable } from '@/components/ui/data-table';
-import { Modal } from '@/components/ui/modal';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, runTransaction, increment, getDoc, writeBatch, arrayUnion } from 'firebase/firestore';
-import { Card } from '@/components/ui/card';
-import { 
-  DollarSign, TrendingUp, TrendingDown, PiggyBank, FileText, 
-  Image as ImageIcon, File, X, Info, ClipboardList, User, 
-  Paperclip, Upload, FileType, Link2, Trash2, Eye, Wallet, Receipt 
-} from 'lucide-react';
+import { useState, useEffect } from "react";
+import { DataTable } from "@/components/ui/data-table";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
+  where,
+  runTransaction,
+  increment,
+  getDoc,
+  writeBatch,
+  arrayUnion,
+} from "firebase/firestore";
+import { Card } from "@/components/ui/card";
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  PiggyBank,
+  FileText,
+  Image as ImageIcon,
+  File,
+  X,
+  Info,
+  ClipboardList,
+  User,
+  Paperclip,
+  Upload,
+  FileType,
+  Link2,
+  Trash2,
+  Eye,
+  Wallet,
+  Receipt,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '@/lib/firebase';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useDataOperations, Collection } from '@/hooks/useDataOperations';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/lib/firebase";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useDataOperations, Collection } from "@/hooks/useDataOperations";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ReceiptForm } from '@/components/forms/receipt-form';
+import { ReceiptForm } from "@/components/forms/receipt-form";
 import { useAuth } from "@/hooks/useAuth";
-import { formatLKR } from '@/lib/utils';
+import { formatLKR } from "@/lib/utils";
 import { FinanceDetails } from "@/components/finance/finance-details";
 
 interface Transaction {
@@ -32,8 +67,8 @@ interface Transaction {
   amount: number;
   description: string;
   attachments?: string[];
-  status: 'Pending' | 'Completed' | 'Cancelled';
-  type: 'Income' | 'Expense';
+  status: "Pending" | "Completed" | "Cancelled";
+  type: "Income" | "Expense";
   createdAt: string;
   updatedAt?: string;
   receiptIssued: boolean;
@@ -50,8 +85,8 @@ interface AccountType {
   id: string;
   name: string;
   description?: string;
-  type: 'Income' | 'Expense' | 'Bank' | 'Cash';
-  status: 'Active' | 'Inactive';
+  type: "Income" | "Expense" | "Bank" | "Cash";
+  status: "Active" | "Inactive";
   balance?: number;
   bankDetails?: {
     accountNumber: string;
@@ -65,83 +100,83 @@ interface Category {
   id: string;
   name: string;
   type: string;
-  status: 'Active' | 'Inactive';
+  status: "Active" | "Inactive";
 }
 
-const STATUS_OPTIONS = ['Pending', 'Completed', 'Cancelled'] as const;
-const TYPE_OPTIONS = ['Income', 'Expense'] as const;
+const STATUS_OPTIONS = ["Pending", "Completed", "Cancelled"] as const;
+const TYPE_OPTIONS = ["Income", "Expense"] as const;
 const EXPENSE_PAYMENT_METHODS = [
-  'Cash',
-  'Bank Transfer',
-  'Credit Card',
-  'Debit Card',
-  'Check',
-  'Online Payment'
+  "Cash",
+  "Bank Transfer",
+  "Credit Card",
+  "Debit Card",
+  "Check",
+  "Online Payment",
 ] as const;
 const EXPENSE_CATEGORIES = [
-  'Player Salaries',
-  'Staff Wages',
-  'Equipment',
-  'Travel',
-  'Facility Maintenance',
-  'Medical',
-  'Training',
-  'Marketing',
-  'Insurance',
-  'Utilities'
+  "Player Salaries",
+  "Staff Wages",
+  "Equipment",
+  "Travel",
+  "Facility Maintenance",
+  "Medical",
+  "Training",
+  "Marketing",
+  "Insurance",
+  "Utilities",
 ] as const;
 const EXPENSE_ACCOUNT_TYPES = [
-  'Operating Expenses',
-  'Player Expenses',
-  'Staff Expenses',
-  'Facility Expenses',
-  'Equipment Expenses',
-  'Travel Expenses',
-  'Medical Expenses',
-  'Administrative Expenses'
+  "Operating Expenses",
+  "Player Expenses",
+  "Staff Expenses",
+  "Facility Expenses",
+  "Equipment Expenses",
+  "Travel Expenses",
+  "Medical Expenses",
+  "Administrative Expenses",
 ] as const;
 const PAYEE_TYPES = [
-  'Player',
-  'Staff',
-  'Vendor',
-  'Contractor',
-  'Service Provider',
-  'Utility Company',
-  'Insurance Company',
-  'Other'
+  "Player",
+  "Staff",
+  "Vendor",
+  "Contractor",
+  "Service Provider",
+  "Utility Company",
+  "Insurance Company",
+  "Other",
 ] as const;
 
 // Add payment methods for income
 const INCOME_PAYMENT_METHODS = [
-  'Cash',
-  'Bank Transfer',
-  'Credit Card',
-  'Debit Card',
-  'Check',
-  'Online Payment',
-  'Mobile Payment'
+  "Cash",
+  "Bank Transfer",
+  "Credit Card",
+  "Debit Card",
+  "Check",
+  "Online Payment",
+  "Mobile Payment",
 ] as const;
 
 // Add this constant for received from types
 const RECEIVED_FROM_TYPES = [
-  'Player',
-  'Staff',
-  'Sponsor',
-  'Member',
-  'Event',
-  'Donation',
-  'Other'
+  "Player",
+  "Staff",
+  "Sponsor",
+  "Member",
+  "Event",
+  "Donation",
+  "Other",
 ] as const;
 
 // Add this interface for form data type
 interface TransactionFormData {
   date: string;
-  transactionType: 'Income' | 'Expense';
+  transactionType: "Income" | "Expense";
   accountType: string;
   paymentMethod: string;
   amount: number;
   description: string;
-  status: typeof STATUS_OPTIONS[number];
+  status: (typeof STATUS_OPTIONS)[number];
   category: string;
   payee: string;
   payeeType: string;
@@ -152,13 +187,13 @@ interface TransactionFormData {
 
 // Add this helper function for file icons
 const getFileIcon = (fileName: string) => {
-  const extension = fileName.split('.').pop()?.toLowerCase();
+  const extension = fileName.split(".").pop()?.toLowerCase();
   switch (extension) {
-    case 'pdf':
+    case "pdf":
       return <FileText className="h-4 w-4 text-red-500" />;
-    case 'png':
-    case 'jpg':
-    case 'jpeg':
+    case "png":
+    case "jpg":
+    case "jpeg":
       return <ImageIcon className="h-4 w-4 text-blue-500" />;
     default:
       return <File className="h-4 w-4 text-gray-500" />;
@@ -166,7 +201,9 @@ const getFileIcon = (fileName: string) => {
 };
 
 // Add this validation function near the top of the component
-const validateForm = (data: TransactionFormData): { isValid: boolean; errors: string[] } => {
+const validateForm = (
+  data: TransactionFormData
+): { isValid: boolean; errors: string[] } => {
   const errors: string[] = [];
 
   if (!data.date) errors.push("Date is required");
@@ -176,16 +213,16 @@ const validateForm = (data: TransactionFormData): { isValid: boolean; errors: st
   if (!data.amount || data.amount <= 0) errors.push("Valid amount is required");
   if (!data.status) errors.push("Status is required");
   if (!data.category) errors.push("Category is required");
-  
+
   // Validate payee information for expenses
-  if (data.transactionType === 'Expense') {
+  if (data.transactionType === "Expense") {
     if (!data.payeeType) errors.push("Payee type is required");
     if (!data.payee.trim()) errors.push("Payee name is required");
   }
 
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
   };
 };
 
@@ -197,46 +234,51 @@ interface NameSuggestion {
 export default function FinancePage() {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const { items: transactionItems, formatAmount, deleteItem } = useDataOperations('transactions' as Collection);
+  const {
+    items: transactionItems,
+    formatAmount,
+    deleteItem,
+  } = useDataOperations("transactions" as Collection);
   const [accountTypes, setAccountTypes] = useState<AccountType[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [editingTransaction, setEditingTransaction] =
+    useState<Transaction | null>(null);
   const [payeeSuggestions, setPayeeSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [formError, setFormError] = useState('');
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [selectedAttachments, setSelectedAttachments] = useState<string[]>([]);
   const [currentAttachments, setCurrentAttachments] = useState<string[]>([]);
-  const [showAttachments, setShowAttachments] = useState(false);
-  const [viewerOpen, setViewerOpen] = useState(false);
   const [showReceiptForm, setShowReceiptForm] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<Transaction | null>(null);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [receivedFromSuggestions, setReceivedFromSuggestions] = useState<NameSuggestion[]>([]);
-  const [showReceivedFromSuggestions, setShowReceivedFromSuggestions] = useState(false);
+  const [receivedFromSuggestions, setReceivedFromSuggestions] = useState<
+    NameSuggestion[]
+  >([]);
+  const [showReceivedFromSuggestions, setShowReceivedFromSuggestions] =
+    useState(false);
 
   const [formData, setFormData] = useState<TransactionFormData>({
-    date: new Date().toISOString().split('T')[0],
-    transactionType: 'Income',
-    accountType: '',
-    paymentMethod: 'Cash',
+    date: new Date().toISOString().split("T")[0],
+    transactionType: "Income",
+    accountType: "",
+    paymentMethod: "Cash",
     amount: 0,
-    description: '',
-    status: 'Pending',
-    category: '',
-    payee: '',
-    payeeType: '',
+    description: "",
+    status: "Pending",
+    category: "",
+    payee: "",
+    payeeType: "",
     attachments: [],
-    receivedFrom: '',
-    receivedFromType: ''
+    receivedFrom: "",
+    receivedFromType: "",
   });
 
   useEffect(() => {
     if (user) {
-      console.log('User authenticated, fetching transactions...');
       fetchTransactions();
       fetchCategories();
       fetchAccountTypes();
@@ -245,51 +287,48 @@ export default function FinancePage() {
 
   const fetchTransactions = async () => {
     try {
-      const transactionsRef = collection(db, 'transactions');
+      const transactionsRef = collection(db, "transactions");
       const snapshot = await getDocs(transactionsRef);
-      const transactionsData = snapshot.docs.map(doc => ({
+      const transactionsData = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       })) as Transaction[];
-      console.log('Fetched transactions:', transactionsData);
       setTransactions(transactionsData);
     } catch (error) {
-      console.error('Error fetching transactions:', error);
+      console.error("Error fetching transactions:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch transactions"
+        description: "Failed to fetch transactions",
       });
     }
   };
 
   const fetchAccountTypes = async () => {
     try {
-      console.log('Fetching account types...');
-      const accountsRef = collection(db, 'accountTypes');
+      const accountsRef = collection(db, "accountTypes");
       const snapshot = await getDocs(accountsRef);
-      const fetchedAccounts = snapshot.docs.map(doc => {
+      const fetchedAccounts = snapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
           name: data.name,
-          type: data.type || (data.bankDetails ? 'Bank' : 'Cash'),
+          type: data.type || (data.bankDetails ? "Bank" : "Cash"),
           description: data.description,
           status: data.status,
           balance: data.balance,
-          bankDetails: data.bankDetails
+          bankDetails: data.bankDetails,
         };
       }) as AccountType[];
-      
-      console.log('Fetched accounts:', fetchedAccounts);
-      
-      // Only filter by active status
-      const activeAccounts = fetchedAccounts.filter(account => account.status === 'Active');
 
-      console.log('Active accounts:', activeAccounts);
+      // Only filter by active status
+      const activeAccounts = fetchedAccounts.filter(
+        (account) => account.status === "Active"
+      );
+
       setAccountTypes(activeAccounts);
     } catch (error) {
-      console.error('Error fetching account types:', error);
+      console.error("Error fetching account types:", error);
       toast({
         title: "Error",
         description: "Failed to fetch account types",
@@ -300,12 +339,10 @@ export default function FinancePage() {
 
   // Add effect to log account types when they change
   useEffect(() => {
-    console.log('Current accountTypes:', accountTypes);
-    console.log('Current transaction type:', formData.transactionType);
     const filteredAccounts = accountTypes.filter(
-      account => account.status === 'Active' && account.type === formData.transactionType
+      (account) =>
+        account.status === "Active" && account.type === formData.transactionType
     );
-    console.log('Filtered accounts for', formData.transactionType, ':', filteredAccounts);
   }, [accountTypes, formData.transactionType]);
 
   // Make sure to refresh when transaction type changes
@@ -315,49 +352,54 @@ export default function FinancePage() {
 
   const fetchCategories = async () => {
     try {
-      const categoriesRef = collection(db, 'categories');
+      const categoriesRef = collection(db, "categories");
       const snapshot = await getDocs(categoriesRef);
-      const fetchedCategories = snapshot.docs.map(doc => {
+      const fetchedCategories = snapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
-          name: data.name || '',
-          type: data.type || '',
-          status: data.status || 'Inactive'
+          name: data.name || "",
+          type: data.type || "",
+          status: data.status || "Inactive",
         } as Category;
       });
       setCategories(fetchedCategories);
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error("Error fetching categories:", error);
     }
   };
 
   // Get filtered categories based on transaction type
   const getFilteredCategories = () => {
-    return categories.filter(category => 
-      category.type === formData.transactionType && 
-      category.status === 'Active'
+    return categories.filter(
+      (category) =>
+        category.type === formData.transactionType &&
+        category.status === "Active"
     );
   };
 
   // Update form fields when transaction type changes
   useEffect(() => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      category: '' // Reset category when transaction type changes
+      category: "", // Reset category when transaction type changes
     }));
   }, [formData.transactionType]);
 
   const calculateFinancialStats = () => {
-    const completedTransactions = transactions.filter(t => t.status === 'Completed');
+    const completedTransactions = transactions.filter(
+      (t) => t.status === "Completed"
+    );
     const totalIncome = completedTransactions
-      .filter(t => t.type === 'Income')
+      .filter((t) => t.type === "Income")
       .reduce((sum, t) => sum + t.amount, 0);
     const totalExpenses = completedTransactions
-      .filter(t => t.type === 'Expense')
+      .filter((t) => t.type === "Expense")
       .reduce((sum, t) => sum + t.amount, 0);
     const balance = totalIncome - totalExpenses;
-    const pendingTransactions = transactions.filter(t => t.status === 'Pending').length;
+    const pendingTransactions = transactions.filter(
+      (t) => t.status === "Pending"
+    ).length;
 
     return { totalIncome, totalExpenses, balance, pendingTransactions };
   };
@@ -366,56 +408,54 @@ export default function FinancePage() {
 
   const fetchPayeeSuggestions = async (type: string) => {
     try {
-      let collectionName = '';
+      let collectionName = "";
       switch (type) {
-        case 'Player':
-          collectionName = 'players';
+        case "Player":
+          collectionName = "players";
           break;
-        case 'Staff':
-          collectionName = 'staff';
+        case "Staff":
+          collectionName = "staff";
           break;
         default:
           return;
       }
 
       const querySnapshot = await getDocs(collection(db, collectionName));
-      const names = querySnapshot.docs.map(doc => doc.data().name);
+      const names = querySnapshot.docs.map((doc) => doc.data().name);
       setPayeeSuggestions(names);
     } catch (error) {
-      console.error('Error fetching payee suggestions:', error);
+      console.error("Error fetching payee suggestions:", error);
     }
   };
 
   // Add this new function to fetch received from suggestions
   const fetchReceivedFromSuggestions = async (type: string) => {
     try {
-      let collectionName = '';
+      let collectionName = "";
       switch (type) {
-        case 'Player':
-          collectionName = 'players';
+        case "Player":
+          collectionName = "players";
           break;
-        case 'Staff':
-          collectionName = 'staff';
+        case "Staff":
+          collectionName = "staff";
           break;
-        case 'Sponsor':
-          collectionName = 'sponsors';
+        case "Sponsor":
+          collectionName = "sponsors";
           break;
         default:
           return;
       }
 
       if (collectionName) {
-        console.log('Fetching from collection:', collectionName);
         const querySnapshot = await getDocs(collection(db, collectionName));
-        const names = querySnapshot.docs.map(doc => ({
+        const names = querySnapshot.docs.map((doc) => ({
           id: doc.id,
-          name: doc.data().name
+          name: doc.data().name,
         }));
-        console.log('Fetched names:', names);
         setReceivedFromSuggestions(names);
       }
     } catch (error) {
-      console.error('Error fetching received from suggestions:', error);
+      console.error("Error fetching received from suggestions:", error);
       setReceivedFromSuggestions([]);
     }
   };
@@ -423,19 +463,19 @@ export default function FinancePage() {
   // Update the handleSubmit function
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "You must be logged in to perform this action"
+        description: "You must be logged in to perform this action",
       });
       return;
     }
 
     try {
       setUploading(true);
-      
+
       const transactionData: Transaction = {
         id: editingTransaction?.id || Date.now().toString(),
         type: formData.transactionType,
@@ -449,18 +489,18 @@ export default function FinancePage() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         receiptIssued: false,
-        receiptNo: '',
+        receiptNo: "",
         attachments: formData.attachments,
         // Include payee fields for Expense transactions
-        ...(formData.transactionType === 'Expense' && {
+        ...(formData.transactionType === "Expense" && {
           payee: formData.payee,
-          payeeType: formData.payeeType
+          payeeType: formData.payeeType,
         }),
         // Include receivedFrom fields for Income transactions
-        ...(formData.transactionType === 'Income' && {
+        ...(formData.transactionType === "Income" && {
           receivedFrom: formData.receivedFrom,
-          receivedFromType: formData.receivedFromType
-        })
+          receivedFromType: formData.receivedFromType,
+        }),
       };
 
       await handleTransaction(transactionData);
@@ -470,15 +510,15 @@ export default function FinancePage() {
       setIsModalOpen(false);
       setEditingTransaction(null);
       fetchTransactions();
-      
+
       toast({
         title: "Success",
-        description: editingTransaction 
-          ? "Transaction updated successfully" 
+        description: editingTransaction
+          ? "Transaction updated successfully"
           : "Transaction created successfully",
       });
     } catch (error) {
-      console.error('Error saving transaction:', error);
+      console.error("Error saving transaction:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -490,75 +530,71 @@ export default function FinancePage() {
   };
 
   const handleDelete = async (id: string) => {
-    console.log('Delete triggered for ID:', id);
-    
     if (!user) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "You must be logged in to perform this action"
+        description: "You must be logged in to perform this action",
       });
       return;
     }
 
     try {
       // Query for the document with matching id field
-      const transactionsRef = collection(db, 'transactions');
-      const q = query(transactionsRef, where('id', '==', id));
+      const transactionsRef = collection(db, "transactions");
+      const q = query(transactionsRef, where("id", "==", id));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Transaction not found"
+          description: "Transaction not found",
         });
         return;
       }
 
       // Get the actual Firebase document ID
       const docId = querySnapshot.docs[0].id;
-      console.log('Found document with Firebase ID:', docId);
 
       // Delete the transaction using the Firebase document ID
-      await deleteDoc(doc(db, 'transactions', docId));
-      console.log('Document deleted successfully');
-      
+      await deleteDoc(doc(db, "transactions", docId));
+
       // Refresh the transactions list
       await fetchTransactions();
-      
+
       // Close the dialog if it's open
       setIsViewDialogOpen(false);
-      
+
       toast({
         title: "Success",
-        description: "Transaction deleted successfully"
+        description: "Transaction deleted successfully",
       });
     } catch (error) {
-      console.error('Error deleting transaction:', error);
+      console.error("Error deleting transaction:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to delete transaction. Please try again."
+        description: "Failed to delete transaction. Please try again.",
       });
     }
   };
 
   const resetForm = () => {
     setFormData({
-      date: new Date().toISOString().split('T')[0],
-      transactionType: 'Income',
-      accountType: '',
-      paymentMethod: 'Cash',
+      date: new Date().toISOString().split("T")[0],
+      transactionType: "Income",
+      accountType: "",
+      paymentMethod: "Cash",
       amount: 0,
-      description: '',
-      status: 'Pending',
-      category: '',
-      payee: '',
-      payeeType: '',
+      description: "",
+      status: "Pending",
+      category: "",
+      payee: "",
+      payeeType: "",
       attachments: [],
-      receivedFrom: '',
-      receivedFromType: ''
+      receivedFrom: "",
+      receivedFromType: "",
     });
     setSelectedAttachments([]);
     setCurrentAttachments([]);
@@ -570,16 +606,16 @@ export default function FinancePage() {
       date: transaction.date,
       transactionType: transaction.type,
       accountType: transaction.accountType,
-      paymentMethod: transaction.paymentMethod || 'Cash',
+      paymentMethod: transaction.paymentMethod || "Cash",
       amount: transaction.amount,
       description: transaction.description,
       status: transaction.status,
       category: transaction.category,
-      payee: transaction.payee || '',
-      payeeType: transaction.payeeType || '',
+      payee: transaction.payee || "",
+      payeeType: transaction.payeeType || "",
       attachments: transaction.attachments || [],
-      receivedFrom: transaction.receivedFrom || '',
-      receivedFromType: transaction.receivedFromType || ''
+      receivedFrom: transaction.receivedFrom || "",
+      receivedFromType: transaction.receivedFromType || "",
     });
     setIsModalOpen(true);
   };
@@ -595,28 +631,31 @@ export default function FinancePage() {
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const storageRef = ref(storage, `transactions/${file.name}-${Date.now()}`);
+        const storageRef = ref(
+          storage,
+          `transactions/${file.name}-${Date.now()}`
+        );
         await uploadBytes(storageRef, file);
         const url = await getDownloadURL(storageRef);
         uploadedUrls.push(url);
       }
 
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        attachments: [...prev.attachments, ...uploadedUrls]
+        attachments: [...prev.attachments, ...uploadedUrls],
       }));
 
       toast({
         variant: "default",
         title: "Success",
-        description: "Files uploaded successfully"
+        description: "Files uploaded successfully",
       });
     } catch (error) {
-      console.error('Error uploading files:', error);
+      console.error("Error uploading files:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to upload files"
+        description: "Failed to upload files",
       });
     } finally {
       setUploading(false);
@@ -624,75 +663,85 @@ export default function FinancePage() {
   };
 
   const handleRemoveAttachment = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      attachments: prev.attachments.filter((_, i) => i !== index)
+      attachments: prev.attachments.filter((_, i) => i !== index),
     }));
   };
 
   // Move columns definition here, inside the component
   const columns = [
-    { key: 'date', label: 'Date', sortable: true },
-    { key: 'accountType', label: 'Account Type', sortable: true },
-    { 
-      key: 'category', 
-      label: 'Category', 
+    { key: "date", label: "Date", sortable: true },
+    { key: "accountType", label: "Account Type", sortable: true },
+    {
+      key: "category",
+      label: "Category",
       sortable: true,
       render: (transaction: Transaction) => {
-        const category = categories.find(c => c.id === transaction.category);
+        const category = categories.find((c) => c.id === transaction.category);
         return category ? category.name : transaction.category;
-      }
+      },
     },
-    { key: 'type', label: 'Type', sortable: true },
-    { 
-      key: 'amount', 
-      label: 'Amount', 
+    { key: "type", label: "Type", sortable: true },
+    {
+      key: "amount",
+      label: "Amount",
       sortable: true,
       render: (transaction: Transaction) => (
-        <span className={transaction.type === 'Income' ? 'text-green-600' : 'text-red-600'}>
+        <span
+          className={
+            transaction.type === "Income" ? "text-green-600" : "text-red-600"
+          }
+        >
           {formatAmount(transaction.amount)}
         </span>
-      )
+      ),
     },
-    { key: 'description', label: 'Description', sortable: true },
-    { 
-      key: 'payee', 
-      label: 'Payee', 
+    { key: "description", label: "Description", sortable: true },
+    {
+      key: "payee",
+      label: "Payee",
       sortable: true,
       render: (transaction: Transaction) => {
-        if (transaction.type !== 'Expense') return '-';
+        if (transaction.type !== "Expense") return "-";
         return transaction.payee ? (
           <div className="text-sm">
             <div>{transaction.payee}</div>
             <div className="text-muted-foreground">{transaction.payeeType}</div>
           </div>
-        ) : '-';
-      }
+        ) : (
+          "-"
+        );
+      },
     },
-    { 
-      key: 'receivedFrom', 
-      label: 'Received From', 
+    {
+      key: "receivedFrom",
+      label: "Received From",
       sortable: true,
       render: (transaction: Transaction) => {
-        if (transaction.type !== 'Income') return '-';
+        if (transaction.type !== "Income") return "-";
         return transaction.receivedFrom ? (
           <div className="text-sm">
             <div>{transaction.receivedFrom}</div>
-            <div className="text-muted-foreground">{transaction.receivedFromType}</div>
+            <div className="text-muted-foreground">
+              {transaction.receivedFromType}
+            </div>
           </div>
-        ) : '-';
-      }
+        ) : (
+          "-"
+        );
+      },
     },
-    { key: 'status', label: 'Status', sortable: true },
+    { key: "status", label: "Status", sortable: true },
     {
-      key: 'attachments',
-      label: 'Attachments',
+      key: "attachments",
+      label: "Attachments",
       sortable: false,
       render: (transaction: Transaction) => {
         if (!transaction.attachments?.length) {
           return <span className="text-muted-foreground">No attachments</span>;
         }
-        
+
         return (
           <div className="flex gap-2">
             {transaction.attachments.map((url, index) => (
@@ -715,11 +764,11 @@ export default function FinancePage() {
             ))}
           </div>
         );
-      }
+      },
     },
     {
-      key: 'actions',
-      label: 'Actions',
+      key: "actions",
+      label: "Actions",
       sortable: false,
       render: (transaction: Transaction) => (
         <div className="flex gap-2">
@@ -732,10 +781,10 @@ export default function FinancePage() {
             <Eye className="h-4 w-4" />
             View
           </Button>
-          
-          {transaction.type === 'Income' && !transaction.receiptIssued && (
-            <Button 
-              size="sm" 
+
+          {transaction.type === "Income" && (
+            <Button
+              size="sm"
               variant="outline"
               onClick={() => {
                 setSelectedTransaction(transaction);
@@ -749,10 +798,12 @@ export default function FinancePage() {
             size="sm"
             variant="destructive"
             onClick={() => {
-              console.log('Transaction to delete:', transaction);
-              if (window.confirm('Are you sure you want to delete this transaction?')) {
+              if (
+                window.confirm(
+                  "Are you sure you want to delete this transaction?"
+                )
+              ) {
                 const docId = transaction.id.toString();
-                console.log('Deleting document with ID:', docId);
                 handleDelete(docId);
               }
             }}
@@ -762,12 +813,11 @@ export default function FinancePage() {
             Delete
           </Button>
         </div>
-      )
-    }
+      ),
+    },
   ];
 
   const handleView = (record: any) => {
-    console.log('Viewing record:', record);
     setSelectedRecord(record);
     setIsViewDialogOpen(true);
   };
@@ -784,36 +834,56 @@ export default function FinancePage() {
       const batch = writeBatch(db);
 
       // Update account balance
-      const accountTypesRef = collection(db, 'accountTypes');
-      const accountQuery = query(accountTypesRef, where('name', '==', transactionData.accountType));
+      const accountTypesRef = collection(db, "accountTypes");
+      const accountQuery = query(
+        accountTypesRef,
+        where("name", "==", transactionData.accountType)
+      );
       const accountSnapshot = await getDocs(accountQuery);
 
       if (!accountSnapshot.empty) {
         const account = accountSnapshot.docs[0];
-        const accountRef = doc(db, 'accountTypes', account.id);
+        const accountRef = doc(db, "accountTypes", account.id);
         const currentBalance = account.data().balance || 0;
-        
-        const balanceChange = transactionData.type === 'Income' 
-          ? Number(transactionData.amount) 
-          : -Number(transactionData.amount);
+        const existingTransactions = account.data().transactions || [];
+
+        const balanceChange =
+          transactionData.type === "Income"
+            ? Number(transactionData.amount)
+            : -Number(transactionData.amount);
+
+        const bankTransaction = {
+          id: Date.now().toString(),
+          amount: Number(formData.amount),
+          type: formData.transactionType === 'Income' ? 'credit' : 'debit',
+          description: formData.description,
+          date: new Date().toISOString(),
+          receivedFrom: formData.receivedFrom,
+          receivedFromType: formData.receivedFromType,
+          category: formData.category,
+          status: formData.status,
+          paymentMethod: formData.paymentMethod,
+          transactionId: null
+        };
 
         batch.update(accountRef, {
           balance: currentBalance + balanceChange,
-          lastUpdated: new Date().toISOString()
+          transactions: [...existingTransactions, bankTransaction],
+          lastUpdated: new Date().toISOString(),
         });
       }
 
       // Add transaction
-      const transactionRef = doc(collection(db, 'transactions'));
+      const transactionRef = doc(collection(db, "transactions"));
       const { id, ...transactionDataWithoutId } = transactionData; // Remove the id field
       batch.set(transactionRef, {
         ...transactionDataWithoutId,
-        id: transactionRef.id // Use Firebase's auto-generated ID
+        id: transactionRef.id, // Use Firebase's auto-generated ID
       });
 
       await batch.commit();
     } catch (error) {
-      console.error('Error handling transaction:', error);
+      console.error("Error handling transaction:", error);
       throw error;
     }
   };
@@ -823,11 +893,11 @@ export default function FinancePage() {
 
     try {
       // Update the transaction with receipt information
-      const transactionRef = doc(db, 'transactions', selectedTransaction.id);
+      const transactionRef = doc(db, "transactions", selectedTransaction.id);
       await updateDoc(transactionRef, {
         receiptIssued: true,
         receiptNo: receiptData.receiptNo,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       });
 
       // Refresh the transactions list
@@ -842,7 +912,7 @@ export default function FinancePage() {
         description: "Receipt issued successfully",
       });
     } catch (error) {
-      console.error('Error issuing receipt:', error);
+      console.error("Error issuing receipt:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -864,7 +934,9 @@ export default function FinancePage() {
               <Wallet className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Income</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Total Income
+              </p>
               <h3 className="text-2xl font-bold text-green-600">
                 {formatLKR(stats.totalIncome)}
               </h3>
@@ -878,7 +950,9 @@ export default function FinancePage() {
               <Receipt className="h-6 w-6 text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Expenses</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Total Expenses
+              </p>
               <h3 className="text-2xl font-bold text-red-600">
                 {formatLKR(stats.totalExpenses)}
               </h3>
@@ -913,7 +987,7 @@ export default function FinancePage() {
           setEditingTransaction(null);
           resetForm();
         }}
-        title={editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}
+        title={editingTransaction ? "Edit Transaction" : "Add New Transaction"}
       >
         <form onSubmit={handleSubmit} className="space-y-6">
           <Tabs defaultValue="basic" className="w-full">
@@ -926,13 +1000,16 @@ export default function FinancePage() {
                 <ClipboardList className="h-4 w-4" />
                 <span>Details</span>
               </TabsTrigger>
-              {formData.transactionType === 'Expense' && (
+              {formData.transactionType === "Expense" && (
                 <TabsTrigger value="payee" className="flex items-center gap-2">
                   <User className="h-4 w-4" />
                   <span>Payee</span>
                 </TabsTrigger>
               )}
-              <TabsTrigger value="attachments" className="flex items-center gap-2">
+              <TabsTrigger
+                value="attachments"
+                className="flex items-center gap-2"
+              >
                 <Paperclip className="h-4 w-4" />
                 <span>Attachments</span>
               </TabsTrigger>
@@ -942,18 +1019,24 @@ export default function FinancePage() {
             <TabsContent value="basic" className="space-y-4 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">Transaction Type</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Transaction Type
+                  </label>
                   <select
                     className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
                     value={formData.transactionType}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      transactionType: e.target.value as 'Income' | 'Expense'
-                    })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        transactionType: e.target.value as "Income" | "Expense",
+                      })
+                    }
                     required
                   >
                     {TYPE_OPTIONS.map((type) => (
-                      <option key={type} value={type}>{type}</option>
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -963,21 +1046,30 @@ export default function FinancePage() {
                   <Input
                     type="date"
                     value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, date: e.target.value })
+                    }
                     required
                     className="focus:ring-2 focus:ring-primary"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Amount</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Amount
+                  </label>
                   <Input
                     type="number"
                     min="0"
                     step="0.01"
                     placeholder="Enter amount"
                     value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        amount: Number(e.target.value),
+                      })
+                    }
                     required
                     className="focus:ring-2 focus:ring-primary"
                   />
@@ -989,58 +1081,71 @@ export default function FinancePage() {
             <TabsContent value="details" className="space-y-4 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Account Type</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Account Type
+                  </label>
                   <select
                     className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
                     value={formData.accountType}
                     onChange={(e) => {
-                      console.log('Selected account type:', e.target.value);
                       setFormData({ ...formData, accountType: e.target.value });
                     }}
                     required
                   >
                     <option value="">Select Account Type</option>
                     {accountTypes
-                      .filter(account => account.status === 'Active')
+                      .filter((account) => account.status === "Active")
                       .map((account) => (
                         <option key={account.id} value={account.name}>
                           {account.name}
                         </option>
-                      ))
-                    }
+                      ))}
                   </select>
                 </div>
 
-                {formData.transactionType === 'Income' && (
+                {formData.transactionType === "Income" && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium mb-2">Received From (Type)</label>
+                      <label className="block text-sm font-medium mb-2">
+                        Received From (Type)
+                      </label>
                       <select
                         className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
-                        value={formData.receivedFromType || ''}
+                        value={formData.receivedFromType || ""}
                         onChange={(e) => {
                           const selectedType = e.target.value;
-                          setFormData({ ...formData, receivedFromType: selectedType, receivedFrom: '' });
+                          setFormData({
+                            ...formData,
+                            receivedFromType: selectedType,
+                            receivedFrom: "",
+                          });
                           if (selectedType) {
                             fetchReceivedFromSuggestions(selectedType);
                           }
                         }}
-                        required={formData.transactionType === 'Income'}
+                        required={formData.transactionType === "Income"}
                       >
                         <option value="">Select Type</option>
                         {RECEIVED_FROM_TYPES.map((type) => (
-                          <option key={`received-type-${type}`} value={type}>{type}</option>
+                          <option key={`received-type-${type}`} value={type}>
+                            {type}
+                          </option>
                         ))}
                       </select>
                     </div>
 
                     <div className="relative">
-                      <label className="block text-sm font-medium mb-2">Received From (Name)</label>
+                      <label className="block text-sm font-medium mb-2">
+                        Received From (Name)
+                      </label>
                       <Input
                         placeholder="Enter name"
-                        value={formData.receivedFrom || ''}
+                        value={formData.receivedFrom || ""}
                         onChange={(e) => {
-                          setFormData({ ...formData, receivedFrom: e.target.value });
+                          setFormData({
+                            ...formData,
+                            receivedFrom: e.target.value,
+                          });
                           setShowReceivedFromSuggestions(true);
                         }}
                         onFocus={() => {
@@ -1050,65 +1155,88 @@ export default function FinancePage() {
                         }}
                         onBlur={() => {
                           // Delay hiding suggestions to allow for click events
-                          setTimeout(() => setShowReceivedFromSuggestions(false), 200);
+                          setTimeout(
+                            () => setShowReceivedFromSuggestions(false),
+                            200
+                          );
                         }}
-                        required={formData.transactionType === 'Income'}
+                        required={formData.transactionType === "Income"}
                         className="focus:ring-2 focus:ring-primary"
                       />
-                      {showReceivedFromSuggestions && receivedFromSuggestions.length > 0 && (
-                        <div className="absolute z-10 w-full bg-background border rounded-md mt-1 max-h-40 overflow-y-auto">
-                          {receivedFromSuggestions
-                            .filter(item => 
-                              item.name.toLowerCase().includes((formData.receivedFrom || '').toLowerCase())
-                            )
-                            .map((item) => (
-                              <div
-                                key={`received-suggestion-${item.id}`}
-                                className="p-2 hover:bg-muted cursor-pointer"
-                                onClick={() => {
-                                  setFormData({ ...formData, receivedFrom: item.name });
-                                  setShowReceivedFromSuggestions(false);
-                                }}
-                              >
-                                {item.name}
-                              </div>
-                            ))}
-                        </div>
-                      )}
+                      {showReceivedFromSuggestions &&
+                        receivedFromSuggestions.length > 0 && (
+                          <div className="absolute z-10 w-full bg-background border rounded-md mt-1 max-h-40 overflow-y-auto">
+                            {receivedFromSuggestions
+                              .filter((item) =>
+                                item.name
+                                  .toLowerCase()
+                                  .includes(
+                                    (formData.receivedFrom || "").toLowerCase()
+                                  )
+                              )
+                              .map((item) => (
+                                <div
+                                  key={`received-suggestion-${item.id}`}
+                                  className="p-2 hover:bg-muted cursor-pointer"
+                                  onClick={() => {
+                                    setFormData({
+                                      ...formData,
+                                      receivedFrom: item.name,
+                                    });
+                                    setShowReceivedFromSuggestions(false);
+                                  }}
+                                >
+                                  {item.name}
+                                </div>
+                              ))}
+                          </div>
+                        )}
                     </div>
                   </>
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Payment Method</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Payment Method
+                  </label>
                   <select
                     className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
                     value={formData.paymentMethod}
                     onChange={(e) => {
                       const newPaymentMethod = e.target.value;
-                      setFormData({ ...formData, paymentMethod: newPaymentMethod });
+                      setFormData({
+                        ...formData,
+                        paymentMethod: newPaymentMethod,
+                      });
                     }}
                     required
                   >
                     <option value="">Select Payment Method</option>
-                    {(formData.transactionType === 'Expense' ? EXPENSE_PAYMENT_METHODS : INCOME_PAYMENT_METHODS)
-                      .map((method) => (
-                        <option key={method} value={method}>{method}</option>
-                      ))
-                    }
+                    {(formData.transactionType === "Expense"
+                      ? EXPENSE_PAYMENT_METHODS
+                      : INCOME_PAYMENT_METHODS
+                    ).map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Category</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Category
+                  </label>
                   <select
                     className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, category: e.target.value })
+                    }
                     required
                   >
                     <option value="">Select Category</option>
-                    {getFilteredCategories().map(category => (
+                    {getFilteredCategories().map((category) => (
                       <option key={category.id} value={category.id}>
                         {category.name}
                       </option>
@@ -1117,40 +1245,53 @@ export default function FinancePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Status</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Status
+                  </label>
                   <select
                     className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
                     value={formData.status}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      status: e.target.value as typeof STATUS_OPTIONS[number]
-                    })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        status: e.target
+                          .value as (typeof STATUS_OPTIONS)[number],
+                      })
+                    }
                     required
                   >
                     {STATUS_OPTIONS.map((status) => (
-                      <option key={status} value={status}>{status}</option>
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
                     ))}
                   </select>
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">Description</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Description
+                  </label>
                   <textarea
                     className="w-full p-2 border rounded-md bg-background min-h-[100px] focus:ring-2 focus:ring-primary"
                     placeholder="Enter transaction description"
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
                   />
                 </div>
               </div>
             </TabsContent>
 
             {/* Payee Tab - Only for Expenses */}
-            {formData.transactionType === 'Expense' && (
+            {formData.transactionType === "Expense" && (
               <TabsContent value="payee" className="space-y-4 pt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Payee Type</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Payee Type
+                    </label>
                     <select
                       className="w-full p-2 border rounded-md bg-background focus:ring-2 focus:ring-primary"
                       value={formData.payeeType}
@@ -1162,13 +1303,17 @@ export default function FinancePage() {
                     >
                       <option value="">Select Payee Type</option>
                       {PAYEE_TYPES.map((type) => (
-                        <option key={type} value={type}>{type}</option>
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   <div className="relative">
-                    <label className="block text-sm font-medium mb-2">Payee Name</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Payee Name
+                    </label>
                     <Input
                       placeholder="Enter payee name"
                       value={formData.payee}
@@ -1183,8 +1328,10 @@ export default function FinancePage() {
                     {showSuggestions && payeeSuggestions.length > 0 && (
                       <div className="absolute z-10 w-full bg-background border rounded-md mt-1 max-h-40 overflow-y-auto">
                         {payeeSuggestions
-                          .filter(name => 
-                            name.toLowerCase().includes(formData.payee.toLowerCase())
+                          .filter((name) =>
+                            name
+                              .toLowerCase()
+                              .includes(formData.payee.toLowerCase())
                           )
                           .map((name, index) => (
                             <div
@@ -1218,7 +1365,9 @@ export default function FinancePage() {
                       className="hidden"
                       multiple
                     />
-                    <span className="text-sm font-medium">Click to upload files</span>
+                    <span className="text-sm font-medium">
+                      Click to upload files
+                    </span>
                     <span className="text-xs text-muted-foreground">
                       Supported files: PDF, DOC, DOCX, PNG, JPG, JPEG
                     </span>
@@ -1233,12 +1382,19 @@ export default function FinancePage() {
                     </h4>
                     <div className="divide-y divide-border rounded-md border">
                       {formData.attachments.map((file, index) => {
-                        const fileName = file.split('/').pop()?.split('-')[0] || `Attachment ${index + 1}`;
+                        const fileName =
+                          file.split("/").pop()?.split("-")[0] ||
+                          `Attachment ${index + 1}`;
                         return (
-                          <div key={index} className="flex items-center justify-between p-3 hover:bg-muted/50">
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-3 hover:bg-muted/50"
+                          >
                             <div className="flex items-center gap-3">
                               {getFileIcon(file)}
-                              <span className="text-sm font-medium">{fileName}</span>
+                              <span className="text-sm font-medium">
+                                {fileName}
+                              </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Button
@@ -1248,9 +1404,9 @@ export default function FinancePage() {
                                 asChild
                                 className="text-blue-500 hover:text-blue-600"
                               >
-                                <a 
-                                  href={file} 
-                                  target="_blank" 
+                                <a
+                                  href={file}
+                                  target="_blank"
                                   rel="noopener noreferrer"
                                   className="flex items-center gap-1"
                                 >
@@ -1290,19 +1446,18 @@ export default function FinancePage() {
             >
               Cancel
             </Button>
-            <Button 
-              type="submit"
-              className="bg-primary"
-              disabled={uploading}
-            >
+            <Button type="submit" className="bg-primary" disabled={uploading}>
               {uploading ? (
                 <div className="flex items-center gap-2">
                   <span className="animate-spin">⏳</span>
-                  {editingTransaction ? 'Updating...' : 'Adding...'}
+                  {editingTransaction ? "Updating..." : "Adding..."}
                 </div>
+              ) : editingTransaction ? (
+                "Update"
               ) : (
-                editingTransaction ? 'Update' : 'Add'
-              )} Transaction
+                "Add"
+              )}{" "}
+              Transaction
             </Button>
           </div>
         </form>
@@ -1328,10 +1483,10 @@ export default function FinancePage() {
         record={{
           ...selectedRecord,
           receivedFrom: selectedRecord?.receivedFrom,
-          receivedFromType: selectedRecord?.receivedFromType
+          receivedFromType: selectedRecord?.receivedFromType,
         }}
         onDelete={handleDelete}
       />
     </div>
   );
-} 
+}

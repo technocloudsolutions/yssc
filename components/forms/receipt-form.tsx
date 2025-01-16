@@ -198,7 +198,7 @@ export function ReceiptForm({ onSubmit, transactionData, initialData }: ReceiptF
           </Button>
         </form>
       ) : (
-        <div className="print-container bg-white h-screen flex items-center justify-center p-4">
+        <div className="print-container bg-white flex items-center justify-center p-4">
           {/* Receipt container with fixed A4 proportions */}
           <div className="w-[500px] h-[900px] bg-white p-4 shadow-md print:w-[595px] print:h-[842px] print:p-8 mx-auto overflow-auto">
             {/* Club Header */}
@@ -279,10 +279,10 @@ export function ReceiptForm({ onSubmit, transactionData, initialData }: ReceiptF
                 Thank you for your payment. Your support helps us maintain and improve our club facilities.
               </p>
               
-              <div className="flex justify-center mt-6">
+              <div className="flex justify-center" style={{ marginTop: '100px' }}>
                 <div className="text-center">
                   <div className="border-t border-[#001F3F] w-48">
-                    <p className="text-sm text-[#001F3F] mt-2">Authorized Signature</p>
+                    <p className="text-sm text-[#001F3F] mt-1">Authorized Signature</p>
                   </div>
                 </div>
               </div>
