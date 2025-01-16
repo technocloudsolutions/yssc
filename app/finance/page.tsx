@@ -733,7 +733,7 @@ export default function FinancePage() {
             View
           </Button>
           
-          {transaction.type === 'Income' && !transaction.receiptIssued && (
+          {transaction.type === 'Income' && (
             <Button 
               size="sm" 
               variant="outline"
