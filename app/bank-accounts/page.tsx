@@ -59,7 +59,6 @@ export default function BankAccountsPage() {
         ...doc.data()
       })) as AccountType[];
       
-      console.log('All accounts:', allAccounts);
       setAccounts(allAccounts);
     } catch (error) {
       console.error('Error fetching accounts:', error);
