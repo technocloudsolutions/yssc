@@ -67,7 +67,7 @@ export function ReceiptForm({ onSubmit, transactionData, initialData }: ReceiptF
         purpose: transactionData.description || '',
         transactionId: transactionData.id || '',
         receivedFrom: transactionData.receivedFrom || '',
-        remarks: `${transactionData.receivedFromType || ''} ${transactionData.category || ''}`.trim()
+        remarks: `${transactionData.receivedFrom || ''} / ${transactionData.receivedFromType || ''} / ${transactionData.paymentMethod || ''}`.trim()
       };
 
       Object.entries(data).forEach(([key, value]) => {
