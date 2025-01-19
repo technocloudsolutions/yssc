@@ -20,6 +20,7 @@ import {
   getDoc,
   writeBatch,
   arrayUnion,
+  orderBy,
 } from "firebase/firestore";
 import { Card } from "@/components/ui/card";
 import {
@@ -288,7 +289,8 @@ export default function FinancePage() {
   const fetchTransactions = async () => {
     try {
       const transactionsRef = collection(db, "transactions");
-      const snapshot = await getDocs(transactionsRef);
+      const q = query(transactionsRef, orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
       const transactionsData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -554,16 +556,51 @@ export default function FinancePage() {
         return;
       }
 
-      // Get the actual Firebase document ID
+      const transactionData = querySnapshot.docs[0].data();
+
+      // If it was a bank transfer, update the bank account balance
+      if (transactionData.accountType) {
+        const accountTypesRef = collection(db, "accountTypes");
+        const accountQuery = query(
+          accountTypesRef,
+          where("name", "==", transactionData.accountType)
+        );
+        const accountSnapshot = await getDocs(accountQuery);
+        const bankAccount = accountSnapshot.docs[0].data();
+
+        if (accountSnapshot.docs.length <= 0) {
+          throw new Error("Bank account not found");
+        }
+
+        await runTransaction(db, async (transaction) => {
+          const accountRef = doc(
+            db,
+            "accountTypes",
+            accountSnapshot.docs[0].id
+          );
+
+          const currentBalance = bankAccount.balance || 0;
+          const newBalance =
+            transactionData.type === "Expense"
+              ? currentBalance + Number(transactionData.amount)
+              : currentBalance - Number(transactionData.amount);
+
+          const transactions = bankAccount.transactions;
+          const filteredTransactions = transactions.filter(
+            (t: any) => t.transactionId !== transactionData.id
+          );
+
+          transaction.update(accountRef, {
+            balance: newBalance,
+            transactions: filteredTransactions,
+            lastUpdated: new Date().toISOString(),
+          });
+        });
+      }
+
       const docId = querySnapshot.docs[0].id;
-
-      // Delete the transaction using the Firebase document ID
       await deleteDoc(doc(db, "transactions", docId));
-
-      // Refresh the transactions list
       await fetchTransactions();
-
-      // Close the dialog if it's open
       setIsViewDialogOpen(false);
 
       toast({
@@ -840,6 +877,8 @@ export default function FinancePage() {
         where("name", "==", transactionData.accountType)
       );
       const accountSnapshot = await getDocs(accountQuery);
+      const transactionRef = doc(collection(db, "transactions"));
+      const transactionId = transactionRef.id;
 
       if (!accountSnapshot.empty) {
         const account = accountSnapshot.docs[0];
@@ -855,7 +894,7 @@ export default function FinancePage() {
         const bankTransaction = {
           id: Date.now().toString(),
           amount: Number(formData.amount),
-          type: formData.transactionType === 'Income' ? 'credit' : 'debit',
+          type: formData.transactionType === "Income" ? "credit" : "debit",
           description: formData.description,
           date: new Date().toISOString(),
           receivedFrom: formData.receivedFrom,
@@ -863,7 +902,7 @@ export default function FinancePage() {
           category: formData.category,
           status: formData.status,
           paymentMethod: formData.paymentMethod,
-          transactionId: null
+          transactionId: transactionId,
         };
 
         batch.update(accountRef, {
@@ -874,11 +913,10 @@ export default function FinancePage() {
       }
 
       // Add transaction
-      const transactionRef = doc(collection(db, "transactions"));
       const { id, ...transactionDataWithoutId } = transactionData; // Remove the id field
       batch.set(transactionRef, {
         ...transactionDataWithoutId,
-        id: transactionRef.id, // Use Firebase's auto-generated ID
+        id: transactionId, // Use Firebase's auto-generated ID
       });
 
       await batch.commit();
