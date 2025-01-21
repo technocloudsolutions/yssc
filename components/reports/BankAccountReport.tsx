@@ -91,8 +91,6 @@ export default function BankAccountReport() {
           } as AccountType;
         });
 
-        console.log('Raw account data:', accounts);
-
         if (accounts.length === 0) {
           setError('No bank accounts found. Please check account types configuration.');
           setLoading(false);
@@ -180,14 +178,7 @@ export default function BankAccountReport() {
         const account = bankAccounts.find(acc => acc.id === accountFilter);
         return item.bankAccountName === account?.name;
       });
-    }
-
-    console.log('Filtered transactions:', {
-      total: data.length,
-      filtered: filtered.length,
-      dateRange: { startDate, endDate },
-      accountFilter
-    });
+    };
 
     setFilteredData(filtered);
   };

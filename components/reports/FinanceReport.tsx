@@ -138,8 +138,6 @@ export default function FinanceReport({ type, title }: FinanceReportProps) {
         } as Category;
       });
       
-      console.log('Available categories:', fetchedCategories);
-      
       // Add 'all' option and all categories
       setCategories([
         { id: 'all', name: 'All', type: '', status: 'Active' },
