@@ -29,7 +29,8 @@ const Sidebar = () => {
   const [menuItems] = useState([
     { title: 'Dashboard', icon: Home, href: '/' },
     { title: 'Players', icon: Users, href: '/players' },
-    { title: 'Staff', icon: UserCog, href: '/staff' },
+    { title: 'Member', icon: UserCog, href: '/staff' },
+    { title: 'Attendance', icon: Calendar, href: '/attendance' },
     { title: 'Sponsors', icon: Building2, href: '/sponsors' },
     { title: 'Finance', icon: DollarSign, href: '/finance' },
     { title: 'Bank Accounts', icon: Building2, href: '/bank-accounts' },

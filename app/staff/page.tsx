@@ -127,9 +127,7 @@ export default function StaffPage() {
     }
   ];
 
-  // Add this validation function before the StaffPage component
   const validateFormData = (data: Omit<StaffMember, 'id'>) => {
-    // Only validate name field
     if (!data.name) {
       return { isValid: false, tab: 'personal', message: 'Please enter the staff member\'s full name' };
     }
@@ -296,7 +294,6 @@ export default function StaffPage() {
     return (
       <Modal isOpen={isOpen} onClose={onClose} title="Staff Details">
         <div className="space-y-6">
-          {/* Header with staff image and basic info */}
           <div className="flex items-center gap-4">
             <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200">
               {staff.profilePicture ? (
@@ -520,7 +517,7 @@ export default function StaffPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Staff Management</h1>
+        <h1 className="text-2xl font-bold">Member Management</h1>
         <Button onClick={() => setIsModalOpen(true)}>Add Staff Member</Button>
       </div>
 
@@ -570,9 +567,7 @@ export default function StaffPage() {
               </TabsTrigger>
             </TabsList>
 
-            {/* Personal Information Tab */}
             <TabsContent value="personal" className="space-y-4 mt-4">
-              {/* Profile Picture */}
               <div className="flex justify-center mb-6">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-32 h-32 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden hover:border-primary transition-colors">
@@ -615,7 +610,6 @@ export default function StaffPage() {
                 </div>
               </div>
 
-              {/* Personal Details */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Full Name</label>
@@ -682,7 +676,6 @@ export default function StaffPage() {
               </div>
             </TabsContent>
 
-            {/* Professional Information Tab */}
             <TabsContent value="professional" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -732,7 +725,6 @@ export default function StaffPage() {
               </div>
             </TabsContent>
 
-            {/* Additional Information Tab */}
             <TabsContent value="additional" className="space-y-4 mt-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">NIC Number</label>
